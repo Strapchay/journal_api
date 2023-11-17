@@ -1,0 +1,53 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        - DEV=true
+    ports:
+      - "9008:9008"
+    volumes:
+      - ./app:/app
+      - dev-data:/vol/web
+    command: >
+      sh -c "python manage.py wait_for_db && python manage.py migrate && python manage.py runserver 0.0.0.0:9008"
+    environment:
+      - DB_HOST=db
+      - DB_NAME=devdb
+      - DB_USER=devuser
+      - DB_PASS=development
+      - DEBUG=1
+      - DEV=true
+    networks:
+      - dev-net
+    depends_on:
+      db:
+        condition: service_healthy
+    links:
+      - db
+
+  db:
+    image: postgres:16.0-alpine3.18
+    volumes:
+      - dev-db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=devdb
+      - POSTGRES_USER=devuser
+      - POSTGRES_PASSWORD=development
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -d $$POSTGRES_DB -U $$POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dev-net
+
+volumes:
+  dev-data:
+  dev-db:
+
+networks:
+  dev-net:
+    driver: bridge
