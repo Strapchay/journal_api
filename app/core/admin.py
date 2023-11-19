@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from core import models
 
 # Register your models here.
