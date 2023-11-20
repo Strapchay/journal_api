@@ -54,6 +54,7 @@ class PublicJournalTableApiTest(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
         self.user = create_user(**user_payload)
@@ -91,6 +92,7 @@ class PrivateJournalTableApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
         self.user = create_user(**user_payload)
@@ -146,6 +148,7 @@ class PrivateJournalTableApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user2@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
         user = create_user(**user_payload)

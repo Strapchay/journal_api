@@ -17,22 +17,24 @@ class UserManager(BaseUserManager):
     Manager for User Model
     """
 
-    def create_user(self, email, password, **extra_fields):
+    def create_user(self, username, email, password, **extra_fields):
         """
         Create and return a new Useer without privileges
         """
         if not email:
             raise ValueError("User must have an email address")
-        user = self.model(email=self.normalize_email(email), **extra_fields)
+        user = self.model(
+            email=self.normalize_email(email), username=username, **extra_fields
+        )
         user.set_password(password)
         user.save(using=self.db)
         return user
 
-    def create_superuser(self, email, password):
+    def create_superuser(self, username, email, password):
         """
         Create and return a superuser
         """
-        user = self.create_user(email, password)
+        user = self.create_user(username, email, password)
         user.is_staff = True
         user.is_superuser = True
         user.save(using=self.db)
@@ -48,12 +50,16 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     username = models.CharField(max_length=40, null=True, blank=True)
-    is_active = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)  # TODO: switch to email activation
     is_staff = models.BooleanField(default=False)
 
     objects = UserManager()
 
     USERNAME_FIELD = "email"
+
+    REQUIRED_FIELDS = [
+        "username",
+    ]
 
     def gen_rand_name(self):
         chars = string.ascii_letters
@@ -66,14 +72,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.username = username
 
     def save(self, *args, **kwargs):
-        if self.username is not None:
+        if self.username is None:
             self.create_username
         super(User, self).save(*args, **kwargs)
 
 
 class Journal(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    journal_name = models.CharField(max_length=200, null=True, blank=True)
+    journal_name = models.CharField(
+        default="Untitled", max_length=200, null=True, blank=True
+    )
     journal_description = models.CharField(max_length=3000, blank=True, null=True)
 
     def __str__(self) -> str:
@@ -91,7 +99,6 @@ class JournalTables(models.Model):
 class Activities(models.Model):
     name = models.CharField(max_length=100)
     created = models.DateTimeField(auto_now=True)
-    # tags = models.ForeignKey(Tags, on_delete=models.DO_NOTHING, null=True, blank=True)
     journal_table = models.ForeignKey(
         JournalTables, on_delete=models.CASCADE, null=True, blank=True
     )
@@ -131,13 +138,7 @@ class Tags(models.Model):
     tag_name = models.CharField(max_length=300)
     tag_color = models.CharField(max_length=30, choices=Colors.choices)
     tag_class = models.CharField(max_length=30, choices=ColorsClasses.choices)
-    activities = models.ManyToManyField(
-        Activities,
-        related_name="tags",
-    )
-
-    # def save(self,*args,**kwargs):
-    # check_unique_val =
+    activities = models.ManyToManyField(Activities, related_name="tags", blank=True)
 
     class Meta:
         constraints = (
@@ -149,11 +150,6 @@ class Tags(models.Model):
 
     def __str__(self) -> str:
         return self.tag_name
-
-    # intention = models.ForeignKey(Intentions, on_delete=models.DO_NOTHING)
-    # happening = models.ForeignKey(Happenings, on_delete=models.DO_NOTHING)
-    # grateful_for = models.ForeignKey(GratefulFor, on_delete=models.DO_NOTHING)
-    # action_item = models.ForeignKey(ActionItems, on_delete=models.DO_NOTHING)
 
 
 class Intentions(models.Model):

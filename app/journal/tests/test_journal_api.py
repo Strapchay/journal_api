@@ -56,6 +56,7 @@ class PublicJournalApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
         self.user = create_user(**self.payload)
@@ -88,6 +89,7 @@ class PrivateJournalApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
 

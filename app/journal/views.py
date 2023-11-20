@@ -26,13 +26,7 @@ from core.models import (
 from journal import serializers
 
 
-class JournalViewSet(
-    # mixins.CreateModelMixin,
-    # mixins.UpdateModelMixin,
-    # mixins.RetrieveModelMixin,
-    # viewsets.GenericViewSet,
-    viewsets.ModelViewSet
-):
+class JournalViewSet(viewsets.ModelViewSet):
     """
     Viewset for creating journal
     """
@@ -55,10 +49,15 @@ class JournalViewSet(
             serializer.save(user=self.request.user)
 
 
-class JournalTableViewSet(
-    # mixins.CreateModelMixin, mixins.UpdateModelMixin,
-    viewsets.ModelViewSet
-):
+@extend_schema_view(
+    create=extend_schema(
+        description="Endpoint for creating a journal table",
+        examples=[
+            OpenApiExample("Request Body", value={"journal": 1, "table_name": "string"})
+        ],
+    )
+)
+class JournalTableViewSet(viewsets.ModelViewSet):
     """
     Viewset for creating journal table
     """
@@ -73,7 +72,7 @@ class JournalTableViewSet(
         Create a new journal table
         """
         journal = get_object_or_404(Journal, id=self.request.data.get("journal"))
-        # if self.request.user.is_authenticated:
+
         if journal is not None:
             serializer.save(journal=journal)
 
@@ -85,6 +84,108 @@ class JournalTableViewSet(
         return queryset.filter(journal__user=self.request.user)
 
 
+@extend_schema_view(
+    create=extend_schema(
+        description="""
+        Endpoint to create Tags.
+        For the tag_color the following Enums are available:
+
+        class Colors(models.TextChoices):
+            GRAY = "OFF GRAY", "Off Gray"
+            GREEN = "MIDNIGHT GREEN", "Midnight Green"
+            RED = "WINE RED", "Wine Red"
+            ARMY_GREEN = "ARMY GREEN", "Army Green"
+            YELLOW = "YELLOW", "Yellow"
+            BLUE = "LIGHT BLUE", "Light Blue"
+            PEACH = "PEACH", "Peach"
+            TEAL = "TEAL", "Teal"
+            PURPLE = "PURPLE", "Purple"
+            BROWN = "BROWN", "Brown"
+
+        For the tag_class the following Enums are available:
+
+        class ColorsClasses(models.TextChoices):
+            GRAY_CLASS = "color-gray"
+            GREEN_CLASS = "color-green"
+            RED_CLASS = "color-red"
+            ARMY_GREEN_CLASS = "color-army-green"
+            YELLOW_CLASS = "color-yellow"
+            BLUE_CLASS = "color-blue"
+            PEACH_CLASS = "color-peach"
+            TEAL_CLASS = "color-teal"
+            PURPLE_CLASS = "color-purple"
+            BROWN_CLASS = "color-brown"
+
+        Note: The tag_class should be relative to the choosen tag_color
+        """,
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "tag_name": "string",
+                    "tag_color": "OFF GRAY",
+                    "tag_class": "color-gray",
+                },
+            ),
+            OpenApiExample(
+                "Response Body",
+                value={
+                    "id": 0,
+                    "tag_user": 0,
+                    "tag_name": "string",
+                    "tag_color": "OFF GRAY",
+                    "tag_class": "color-gray",
+                },
+            ),
+        ],
+    ),
+    update=extend_schema(
+        description="Endpoint to update Tags",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "tag_name": "string",
+                    "tag_color": "OFF GRAY",
+                    "tag_class": "color-gray",
+                },
+            ),
+            OpenApiExample(
+                "Response Body",
+                value={
+                    "id": 0,
+                    "tag_user": 0,
+                    "tag_name": "string",
+                    "tag_color": "OFF GRAY",
+                    "tag_class": "color-gray",
+                },
+            ),
+        ],
+    ),
+    partial_update=extend_schema(
+        description="Endpoint to update Tags",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "tag_name": "string",
+                    "tag_color": "OFF GRAY",
+                    "tag_class": "color-gray",
+                },
+            ),
+            OpenApiExample(
+                "Response Body",
+                value={
+                    "id": 0,
+                    "tag_user": 0,
+                    "tag_name": "string",
+                    "tag_color": "OFF GRAY",
+                    "tag_class": "color-gray",
+                },
+            ),
+        ],
+    ),
+)
 class TagsViewSet(viewsets.ModelViewSet):
     """
     Viewset for creating journal table
@@ -112,6 +213,45 @@ class TagsViewSet(viewsets.ModelViewSet):
         )
 
 
+@extend_schema_view(
+    create=extend_schema(
+        description="Endpoint to create an Activity. The tags to use can be the default tags by making a get request to the tags endpoint or by creating a new tags to use",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "name": "string",
+                    "tags": [0, 2],
+                    "journal_table": 5,
+                },
+            )
+        ],
+    ),
+    update=extend_schema(
+        description="Endpoint for Updating an Activity",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "name": "string",
+                    "tags": [1, 2],
+                },
+            ),
+        ],
+    ),
+    partial_update=extend_schema(
+        description="Endpoint for Updating an Activity",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "name": "string",
+                    "tags": [1, 2],
+                },
+            ),
+        ],
+    ),
+)
 class ActivitiesViewSet(viewsets.ModelViewSet):
     """
     Viewset for creating a journal table activities
@@ -145,21 +285,181 @@ class BaseSubModelsViewSet(viewsets.ModelViewSet):
             )
 
 
+@extend_schema_view(
+    update=extend_schema(
+        description="Endpoint for Updating an Intentions Item",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "intention": "string",
+                },
+            ),
+            OpenApiExample(
+                "Response Body",
+                value={
+                    "id": 1,
+                    "intention": "string",
+                    "activity": 1,
+                },
+            ),
+        ],
+    ),
+    partial_update=extend_schema(
+        description="Endpoint for Updating an Intentions Item",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "intention": "string",
+                },
+            ),
+            OpenApiExample(
+                "Response Body",
+                value={
+                    "id": 1,
+                    "intention": "string",
+                    "activity": 1,
+                },
+            ),
+        ],
+    ),
+)
 class IntentionsViewSet(BaseSubModelsViewSet):
     serializer_class = serializers.IntentionsSerializer
     queryset = Intentions.objects.all()
 
 
+@extend_schema_view(
+    update=extend_schema(
+        description="Endpoint for Updating an Happenings Item",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "happening": "string",
+                },
+            ),
+            OpenApiExample(
+                "Response Body",
+                value={
+                    "id": 1,
+                    "happening": "string",
+                    "activity": 1,
+                },
+            ),
+        ],
+    ),
+    partial_update=extend_schema(
+        description="Endpoint for Updating an Happening Item",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "happening": "string",
+                },
+            ),
+            OpenApiExample(
+                "Response Body",
+                value={
+                    "id": 1,
+                    "happening": "string",
+                    "activity": 1,
+                },
+            ),
+        ],
+    ),
+)
 class HappeningsViewSet(BaseSubModelsViewSet):
     serializer_class = serializers.HappeningsSerializer
     queryset = Happenings.objects.all()
 
 
+@extend_schema_view(
+    update=extend_schema(
+        description="Endpoint for Updating an Grateful For Item",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "grateful_for": "string",
+                },
+            ),
+            OpenApiExample(
+                "Response Body",
+                value={
+                    "id": 1,
+                    "grateful_for": "string",
+                    "activity": 1,
+                },
+            ),
+        ],
+    ),
+    partial_update=extend_schema(
+        description="Endpoint for Updating an Activity",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "grateful_for": "string",
+                },
+            ),
+            OpenApiExample(
+                "Response Body",
+                value={
+                    "id": 1,
+                    "grateful_for": "string",
+                    "activity": 1,
+                },
+            ),
+        ],
+    ),
+)
 class GratefulForViewSet(BaseSubModelsViewSet):
     serializer_class = serializers.GratefulForSerializer
     queryset = GratefulFor.objects.all()
 
 
+@extend_schema_view(
+    update=extend_schema(
+        description="Endpoint for Updating an ActionItems Item",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "action_item": "string",
+                },
+            ),
+            OpenApiExample(
+                "Response Body",
+                value={
+                    "id": 1,
+                    "action_item": "string",
+                    "activity": 1,
+                },
+            ),
+        ],
+    ),
+    partial_update=extend_schema(
+        description="Endpoint for Updating an ActionItems Item",
+        examples=[
+            OpenApiExample(
+                "Request Body",
+                value={
+                    "action_item": "string",
+                },
+            ),
+            OpenApiExample(
+                "Response Body",
+                value={
+                    "id": 1,
+                    "action_item": "string",
+                    "activity": 1,
+                },
+            ),
+        ],
+    ),
+)
 class ActionsItemViewSet(BaseSubModelsViewSet):
     serializer_class = serializers.ActionItemsSerializer
     queryset = ActionItems.objects.all()

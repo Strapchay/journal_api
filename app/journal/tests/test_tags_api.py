@@ -77,6 +77,7 @@ class PrivateTagsApiTest(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
         self.user = create_user(**user_payload)
@@ -96,6 +97,7 @@ class PrivateTagsApiTest(TestCase):
         }
 
         res = self.client.post(TAGS_URL, payload)
+        print(res.data)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
     def test_create_tag_for_authenticated_user_with_tag_color_not_in_choices_fails(
@@ -130,6 +132,21 @@ class PrivateTagsApiTest(TestCase):
         res2 = self.client.post(TAGS_URL, payload)
         self.assertEqual(res2.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_creating_a_tag_with_not_matching_tag_color_and_class_fails(self):
+        """
+        Test creating a tag with tag_color and tag_class not matching or relative to each other fails
+        """
+        payload = {
+            "tag_user": self.user.id,
+            "tag_name": "Daily",
+            "tag_color": Tags.Colors.RED,
+            "tag_class": Tags.ColorsClasses.GRAY_CLASS,
+        }
+
+        res = self.client.post(TAGS_URL, payload)
+        print(res.data)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_superuser_tags_is_returned_for_normal_user(self):
         """
         Test that tags created by superusers are returned for normal users
@@ -151,6 +168,7 @@ class PrivateTagsApiTest(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "testuser@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
         user = create_user(**user_payload)
@@ -183,6 +201,7 @@ class PrivateTagsApiTest(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "testuser@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
         user = create_user(**user_payload)
@@ -197,5 +216,3 @@ class PrivateTagsApiTest(TestCase):
         res = self.client.post(TAGS_URL, payload)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertTrue(res.data["tag_name"], "Daily")
-
-    # def test_user

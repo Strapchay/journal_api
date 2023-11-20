@@ -13,6 +13,8 @@ from dj_rest_auth.serializers import (
     PasswordResetSerializer,
     PasswordResetConfirmSerializer,
 )
+from core.models import Journal
+from journal.config import JOURNAL_DESCRIPTION
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -22,7 +24,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = get_user_model()
-        fields = ["email", "password", "first_name", "last_name"]
+        fields = ["email", "username", "password", "first_name", "last_name"]
         extra_kwargs = {"password": {"write_only": True, "min_length": 5}}
 
     def create(self, validated_data):
@@ -44,7 +46,14 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = get_user_model()
-        fields = ["email", "password", "password2", "first_name", "last_name"]
+        fields = [
+            "email",
+            "password",
+            "password2",
+            "first_name",
+            "last_name",
+            "username",
+        ]
         extra_kwargs = {"password": {"write_only": True, "min_length": 5}}
 
     def validate(self, attrs):
@@ -54,12 +63,26 @@ class UserCreateSerializer(serializers.ModelSerializer):
             )
         return attrs
 
+    def _create_journal_with_default_values(self, user):
+        """
+        Creates a default journal on user's signup
+        """
+        user_journal = Journal.objects.create(
+            user=user,
+            journal_description=JOURNAL_DESCRIPTION,
+        )
+
     def create(self, validated_data):
         """
         Create and return a user with encrypted password
         """
         validated_data.pop("password2")
-        return get_user_model().objects.create_user(**validated_data)
+
+        created_user = get_user_model().objects.create_user(**validated_data)
+
+        self._create_journal_with_default_values(created_user)
+
+        return created_user
 
 
 class AuthTokenSerializer(serializers.Serializer):
@@ -89,6 +112,10 @@ class AuthTokenSerializer(serializers.Serializer):
         raise serializers.ValidationError(
             _("Unable to authenticate user"), code="authorization"
         )
+
+    class Meta:
+        fields = ["email", "password"]
+        exclude = ["username"]
 
 
 class ChangePasswordSerializer(serializers.ModelSerializer):
@@ -138,7 +165,7 @@ class UpdateUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = get_user_model()
-        fields = ["email", "first_name", "last_name"]
+        fields = ["email", "first_name", "last_name", "username"]
         extra_kwargs = {
             "first_name": {"required": True},
             "last_name": {"required": True},
@@ -161,6 +188,7 @@ class UpdateUserSerializer(serializers.ModelSerializer):
         instance.first_name = validated_data["first_name"]
         instance.last_name = validated_data["last_name"]
         instance.email = validated_data["email"]
+        instance.username = validated_data["username"]
         instance.save()
         return instance
 

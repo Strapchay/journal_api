@@ -56,6 +56,7 @@ class PublicActivitiesApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
 
@@ -109,6 +110,7 @@ class PrivateActivitiesApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
 
@@ -171,6 +173,7 @@ class PrivateActivitiesApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user2@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
 

@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "corsheaders",
     "dj_rest_auth",
+    "user",
+    "journal",
 ]
 
 MIDDLEWARE = [
@@ -161,7 +163,18 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "user.authentication.ExpiringTokenAuthentication",
+    ),
+    "PASSWORD_RESET_SERIALIZER": "user.serializers.ResetPasswordSerializer",
+    "PASSWORD_RESET_CONFIRM_SERIALIZER": "user.serializers.ResetPasswordConfirmSerializer",
 }
+
+REST_AUTH_SERIALIZERS = {
+    "PASSWORD_RESET_SERIALIZER": "user.serializers.ResetPasswordSerializer",
+    "PASSWORD_RESET_CONFIRM_SERIALIZER": "user.serializers.ResetPasswordConfirmSerializer",
+}
+
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Journal API",

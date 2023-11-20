@@ -3,12 +3,13 @@ Test for the User API
 """
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from django.urls import reverse
+from django.urls import reverse, resolve
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.utils import timezone
 from datetime import datetime, timedelta
+from core.models import Journal
 
 CREATE_USER_URL = reverse("user:create")
 TOKEN_URL = reverse("user:token")
@@ -35,6 +36,7 @@ class PublicUserApiTests(TestCase):
         self.payload = {
             "first_name": "Test",
             "last_name": "User",
+            "username": "testuser",
             "email": "user@example.com",
             "password": "Awesomeuser123",
             "password2": "Awesomeuser123",
@@ -51,6 +53,22 @@ class PublicUserApiTests(TestCase):
 
         self.assertTrue(user.check_password(self.payload["password"]))
         self.assertNotIn("password", res.data)
+
+    def test_create_user_success_creates_journal(self):
+        """
+        Test creating a user creates a default journal
+        """
+        res = self.client.post(CREATE_USER_URL, self.payload)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        user = get_user_model().objects.get(email=self.payload["email"])
+
+        self.assertTrue(user.check_password(self.payload["password"]))
+        self.assertNotIn("password", res.data)
+
+        user_journal = Journal.objects.filter(user=user)
+
+        self.assertTrue(user_journal.exists())
 
     def test_create_user_without_matching_password_failure(self):
         """
@@ -97,7 +115,6 @@ class PublicUserApiTests(TestCase):
 
         payload = {"email": self.payload["email"], "password": self.payload["password"]}
         res = self.client.post(TOKEN_URL, payload)
-
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn("token", res.data)
 
@@ -186,9 +203,10 @@ class PrivateUserApiTests(TestCase):
 
     def setUp(self):
         self.payload = {
+            "email": "user@example.com",
+            "username": "testuser",
             "first_name": "Test",
             "last_name": "User",
-            "email": "user@example.com",
             "password": "Awesomeuser123",
         }
 
@@ -226,6 +244,7 @@ class PrivateUserApiTests(TestCase):
             "first_name": "kdfosdf",
             "last_name": "kdlfjldfa",
             "email": "sdfasdf@example.com",
+            "username": "ts",
         }
 
         res = self.client.put(USER_UPDATE_INFO, payload)

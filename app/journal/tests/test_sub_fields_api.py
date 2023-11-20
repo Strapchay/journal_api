@@ -3,8 +3,7 @@ Test for the Happenings,Intentions and Grateful API
 """
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from django.urls import reverse, resolve
-from rest_framework.authtoken.models import Token
+from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.utils import timezone
@@ -65,6 +64,7 @@ class PublicSubFieldsApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
 
@@ -157,6 +157,7 @@ class PrivateIntentionsApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
         self.user = create_user(**self.user_payload)
@@ -339,6 +340,7 @@ class PrivateIntentionsApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user2@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
 
@@ -367,6 +369,7 @@ class PrivateIntentionsApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user2@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
         user = create_user(**user_payload)
@@ -391,6 +394,7 @@ class PrivateIntentionsApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user2@example.com",
+            "username": "testuser",
             "password": "Awesomeuser123",
         }
         user = create_user(**user_payload)
@@ -415,6 +419,7 @@ class PrivateIntentionsApiTests(TestCase):
             "first_name": "Test",
             "last_name": "User",
             "email": "user2@example.com",
+            "username":"testuser",
             "password": "Awesomeuser123",
         }
         user = create_user(**user_payload)

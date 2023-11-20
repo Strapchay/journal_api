@@ -74,6 +74,7 @@ class JournalTableSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = JournalTables
+        #  "journal",
         fields = ["id", "table_name"]
         read_only_fields = ["id"]
 
@@ -107,6 +108,29 @@ class TagsSerializer(serializers.ModelSerializer):
     def format_tag_name(self, attrs):
         return attrs["tag_name"][0].upper() + attrs["tag_name"][1:].lower()
 
+    def validate_tag_matches_color_and_class(self, tag_color, tag_class):
+        """
+        Validates that the tag color and class are relative
+        """
+        if tag_color is not None and tag_class is not None:
+            split_color = tag_color.split(" ")
+            color = (
+                split_color[1].lower()
+                if len(split_color) > 1
+                else split_color[0].lower()
+            )
+
+            if color in tag_class:
+                return True
+            else:
+                raise exceptions.ValidationError(
+                    detail="The tag_color and tag_class has to be relative to each other"
+                )
+
+        raise exceptions.ValidationError(
+            detail="The tag_color and tag_class cannot be empty"
+        )
+
     def validate(self, attrs):
         tag_model_filter = self.Meta.model.objects.filter(
             tag_user=self.context["request"].user
@@ -117,17 +141,24 @@ class TagsSerializer(serializers.ModelSerializer):
         if formatted_tag_name in tag_model_filter:
             raise exceptions.ValidationError(detail="Cannot Create Existing Tag")
 
+        if attrs["tag_color"] is None or attrs["tag_class"] is None:
+            raise exceptions.ValidationError(
+                detail="The tag_color and tag_class has to be supplied"
+            )
+
+        self.validate_tag_matches_color_and_class(
+            attrs["tag_color"], attrs["tag_class"]
+        )
+
         # check if the value gets assigned to the field
         attrs["tag_name"] = formatted_tag_name
-
-        # return attrs
 
         super().validate(attrs)
 
         return attrs
 
     def create(self, validated_data):
-        user = validated_data.pop("tag_user", None)
+        user = validated_data.pop("tag_user", self.context["request"].user)
         tag = Tags.objects.create(
             tag_user=user,
             tag_name=validated_data["tag_name"],
@@ -161,15 +192,20 @@ class ActivitiesSerializer(serializers.ModelSerializer):
     tags = ActivitiesTagsSerializer(many=True, required=False)
 
     def to_internal_value(self, data):
-        if self.context["request"].method == "POST":
-            tags = data.getlist("tags", None)
+        if self.context["request"].method in ["POST", "PUT", "PATCH"]:
+            copied_data = data.copy()
+            try:
+                tags = copied_data.pop("tags", None)
+            except AttributeError as e:
+                tags = copied_data.pop("tags", None)
 
             if tags is not None:
                 if tags is not None and not isinstance(tags, list):
                     raise exceptions.ValidationError(
                         "A list is expected for the tags field"
                     )
-                ret = super().to_internal_value(data)
+
+                ret = super().to_internal_value(copied_data)
                 ret["tags"] = tags
                 return ret
 
@@ -192,21 +228,24 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                     activity.tags.add(tag)
             return activity
         except Exception as e:
-            print("encountered", e)
+            raise exceptions.ValidationError(detail=e)
 
     def update(self, instance, validated_data):
-        tags = validated_data.pop("tags", [])
+        try:
+            tags = validated_data.pop("tags", [])
 
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
 
-        if len(tags) > 0:
-            instance.tags.clear()
-            for tagId in tags:
-                tag = Tags.objects.get(id=tagId)
-                instance.tags.add(tag)
-        instance.save()
-        return instance
+            if len(tags) > 0:
+                instance.tags.clear()
+                for tagId in tags:
+                    tag = Tags.objects.get(id=tagId)
+                    instance.tags.add(tag)
+            instance.save()
+            return instance
+        except Exception as e:
+            raise exceptions.ValidationError(detail=e)
 
     class Meta:
         model = Activities
@@ -264,27 +303,3 @@ class ActionItemsSerializer(BaseSubModelsSerializer):
         model = ActionItems
         fields = ["id", "action_item", "activity"]
         read_only_fields = ["id"]
-
-
-# class IntentionsSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Intentions
-#         fields = ["id", "intention", "activity"]
-#         read_only_fields = ["id"]
-
-#     def create(self, validated_data):
-#         activity = validated_data.pop("activity", None)
-#         intention = Intentions.objects.create(intention=validated_data["intention"])
-#         if activity is not None:
-#             intention.activity = activity
-
-#         intention.save()
-
-#         return intention
-
-#     def update(self, instance, validated_data):
-#         for attr, value in validated_data.items():
-#             setattr(instance, attr, value)
-
-#         instance.save()
-#         return instance
