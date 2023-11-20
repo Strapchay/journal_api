@@ -133,9 +133,6 @@ class Tags(models.Model):
     tag_class = models.CharField(max_length=30, choices=ColorsClasses.choices)
     activities = models.ManyToManyField(
         Activities,
-        null=True,
-        blank=True,
-        # on_delete=models.DO_NOTHING,
         related_name="tags",
     )
 
@@ -162,7 +159,11 @@ class Tags(models.Model):
 class Intentions(models.Model):
     intention = models.CharField(max_length=2000)
     activity = models.ForeignKey(
-        Activities, null=True, blank=True, on_delete=models.CASCADE
+        Activities,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="intentions",
     )
 
     def __str__(self) -> str:
@@ -190,7 +191,7 @@ class GratefulFor(models.Model):
 
 
 class ActionItems(models.Model):
-    action_items = models.CharField(max_length=2000)
+    action_item = models.CharField(max_length=2000)
     activity = models.ForeignKey(
         Activities, null=True, blank=True, on_delete=models.CASCADE
     )

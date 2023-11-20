@@ -11,6 +11,7 @@ from core.models import (
     ActionItems,
     Happenings,
     Intentions,
+    GratefulFor,
 )
 from django.db.models import Q
 from django.db import IntegrityError
@@ -211,3 +212,79 @@ class ActivitiesSerializer(serializers.ModelSerializer):
         model = Activities
         fields = ["id", "name", "tags", "journal_table"]
         read_only_fields = ["id"]
+
+
+class BaseSubModelsSerializer(serializers.ModelSerializer):
+    """
+    Base submodel serializer for other submodel serializers to inherit
+    """
+
+    def create(self, validated_data):
+        activity = validated_data.pop("activity", None)
+        model_obj = self.Meta.model.objects.create(**validated_data)
+
+        if activity is not None:
+            model_obj.activity = activity
+
+        model_obj.save()
+
+        return model_obj
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
+
+
+class IntentionsSerializer(BaseSubModelsSerializer):
+    class Meta:
+        model = Intentions
+        fields = ["id", "intention", "activity"]
+        read_only_fields = ["id"]
+
+
+class HappeningsSerializer(BaseSubModelsSerializer):
+    class Meta:
+        model = Happenings
+        fields = ["id", "happening", "activity"]
+        read_only_fields = ["id"]
+
+
+class GratefulForSerializer(BaseSubModelsSerializer):
+    class Meta:
+        model = GratefulFor
+        fields = ["id", "grateful_for", "activity"]
+        read_only_fields = ["id"]
+
+
+class ActionItemsSerializer(BaseSubModelsSerializer):
+    class Meta:
+        model = ActionItems
+        fields = ["id", "action_item", "activity"]
+        read_only_fields = ["id"]
+
+
+# class IntentionsSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Intentions
+#         fields = ["id", "intention", "activity"]
+#         read_only_fields = ["id"]
+
+#     def create(self, validated_data):
+#         activity = validated_data.pop("activity", None)
+#         intention = Intentions.objects.create(intention=validated_data["intention"])
+#         if activity is not None:
+#             intention.activity = activity
+
+#         intention.save()
+
+#         return intention
+
+#     def update(self, instance, validated_data):
+#         for attr, value in validated_data.items():
+#             setattr(instance, attr, value)
+
+#         instance.save()
+#         return instance

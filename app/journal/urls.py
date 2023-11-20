@@ -7,6 +7,11 @@ router.register("journals", views.JournalViewSet)
 router.register("journal-tables", views.JournalTableViewSet)
 router.register("tags", views.TagsViewSet)
 router.register("activities", views.ActivitiesViewSet)
+router.register("intentions", views.IntentionsViewSet)
+router.register("happenings", views.HappeningsViewSet)
+router.register("grateful-for", views.GratefulForViewSet)
+router.register("action-items", views.ActionsItemViewSet)
+
 
 app_name = "journal"
 

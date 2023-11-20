@@ -13,7 +13,16 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
-from core.models import Journal, JournalTables, Tags, Activities
+from core.models import (
+    Journal,
+    JournalTables,
+    Tags,
+    Activities,
+    Intentions,
+    ActionItems,
+    Happenings,
+    GratefulFor,
+)
 from journal import serializers
 
 
@@ -117,4 +126,40 @@ class ActivitiesViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def get_queryset(self):
-        return self.queryset.filter(journal_table__journal__user=self.request.user)
+        if self.request.user.is_authenticated:
+            return self.queryset.filter(journal_table__journal__user=self.request.user)
+
+
+class BaseSubModelsViewSet(viewsets.ModelViewSet):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        if self.request.user.is_authenticated:
+            serializer.save()
+
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return self.queryset.filter(
+                activity__journal_table__journal__user=self.request.user
+            )
+
+
+class IntentionsViewSet(BaseSubModelsViewSet):
+    serializer_class = serializers.IntentionsSerializer
+    queryset = Intentions.objects.all()
+
+
+class HappeningsViewSet(BaseSubModelsViewSet):
+    serializer_class = serializers.HappeningsSerializer
+    queryset = Happenings.objects.all()
+
+
+class GratefulForViewSet(BaseSubModelsViewSet):
+    serializer_class = serializers.GratefulForSerializer
+    queryset = GratefulFor.objects.all()
+
+
+class ActionsItemViewSet(BaseSubModelsViewSet):
+    serializer_class = serializers.ActionItemsSerializer
+    queryset = ActionItems.objects.all()
