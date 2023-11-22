@@ -209,7 +209,7 @@ class ResetPasswordConfirmSerializer(PasswordResetConfirmSerializer):
     Serializer to for resetting the password confirm view and updating the user password
     """
 
-    def validate(self, attrs):
+    def custom_validation(self, attrs):
         self._errors = {}
 
         # decode the uidb64 to uid to get User object
@@ -219,10 +219,11 @@ class ResetPasswordConfirmSerializer(PasswordResetConfirmSerializer):
         except (TypeError, ValueError, OverflowError, get_user_model().DoesNotExist):
             raise exceptions.ValidationError({"uid": ["Invalid value"]})
 
-        if self.attrs["new_password1"] != self.attrs["new_password2"]:
+        if attrs["new_password1"] != attrs["new_password2"]:
             raise exceptions.ValidationError({"password": ["Password Does Not Match"]})
 
         if not default_token_generator.check_token(self.user, attrs["token"]):
             raise exceptions.ValidationError({"token": ["Invalid Token Value"]})
 
+        # super(PasswordResetConfirmSerializer, self).validate(attrs)
         return attrs

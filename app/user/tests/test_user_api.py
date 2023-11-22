@@ -17,6 +17,7 @@ ME_URL = reverse("user:me")
 CHANGE_PASSWORD_URL = reverse("user:change_password")
 USER_UPDATE_INFO = reverse("user:update_info")
 RESET_PWD_URL = reverse("user:password_reset")
+JOURNAL_URL = reverse("journal:journal-list")
 
 
 def create_user(**params):
@@ -165,13 +166,41 @@ class PublicUserApiTests(TestCase):
         token = Token.objects.get(user=user)
         token.created = timezone.now() - timedelta(3)
 
+        res_get_journals = self.client.get(JOURNAL_URL, HTTP_AUTHORIZATION=res_token)
+
+        self.assertEqual(res_get_journals.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # token = Token.objects.get(user=user)
+        # token.created = timezone.now() - timedelta(3)
+
         # TODO: test creating a resource with the token fails
 
     def test_create_token_and_expire_token_and_token_updated_when_new_token_requested(
         self,
     ):
-        # TODO:
-        pass
+        """
+        Test that a new token is created after a token has expired
+        """
+        self.payload.pop("password2")
+        user = create_user(**self.payload)
+        user.is_active = True
+        user.save()
+        payload = {"email": self.payload["email"], "password": self.payload["password"]}
+        res = self.client.post(TOKEN_URL, payload)
+        self.assertIn("token", res.data)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        res_token = res.data["token"]
+
+        token = Token.objects.get(user=user)
+        token.created = timezone.now() - timedelta(3)
+        token.save()
+        res_get_journals = self.client.get(JOURNAL_URL, HTTP_AUTHORIZATION=res_token)
+        self.assertEqual(res_get_journals.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        res_new_token = self.client.post(TOKEN_URL, payload)
+        self.assertIn("token", res.data)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertNotEqual(res_new_token.data["token"], res_token)
 
     def test_retrieve_user_unauthorize(self):
         """
