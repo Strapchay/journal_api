@@ -56,11 +56,36 @@ class UserCreateSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {"password": {"write_only": True, "min_length": 5}}
 
+    def validate_name_spacing(self, attrs):
+        invalid_first_name = len(attrs["first_name"].split(" ")) > 1
+
+        invalid_last_name = len(attrs["last_name"].split(" ")) > 1
+
+        invalid_username = len(attrs["username"].split(" ")) > 1
+
+        invalid_attr = (
+            invalid_first_name
+            and "first_name"
+            or invalid_last_name
+            and "last_name"
+            or invalid_username
+            and "username"
+        )
+
+        if invalid_attr not in [None, False]:
+            raise serializers.ValidationError(
+                {invalid_attr: "The naming should not contain a spacing"}
+            )
+
+        return attrs
+
     def validate(self, attrs):
         if attrs["password"] != attrs["password2"]:
             raise serializers.ValidationError(
                 {"password": "Password fields didn't match"}
             )
+
+        self.validate_name_spacing(attrs)
         return attrs
 
     def _create_journal_with_default_values(self, user):
