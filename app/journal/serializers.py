@@ -54,7 +54,11 @@ class JournalSerializer(serializers.ModelSerializer):
         """
         copy the admin default tags to the user on journal creation
         """
-        request_user = self.context["request"].user
+        request_user = (
+            self.context["request"].user
+            if self.context["request"].user.is_authenticated
+            else self.context["user"]
+        )
 
         tags = Tags.objects.filter(tag_user__is_superuser=True).values(
             "tag_name", "tag_color", "tag_class"
