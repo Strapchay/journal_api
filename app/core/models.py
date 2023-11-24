@@ -83,13 +83,16 @@ class Journal(models.Model):
         default="Untitled", max_length=200, null=True, blank=True
     )
     journal_description = models.CharField(max_length=3000, blank=True, null=True)
+    current_table = models.IntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.journal_name
 
 
 class JournalTables(models.Model):
-    journal = models.ForeignKey(Journal, on_delete=models.CASCADE)
+    journal = models.ForeignKey(
+        Journal, on_delete=models.CASCADE, related_name="journal_tables"
+    )
     table_name = models.CharField(max_length=100)
 
     def __str__(self) -> str:
@@ -100,7 +103,11 @@ class Activities(models.Model):
     name = models.CharField(max_length=100)
     created = models.DateTimeField(auto_now=True)
     journal_table = models.ForeignKey(
-        JournalTables, on_delete=models.CASCADE, null=True, blank=True
+        JournalTables,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="activities",
     )
 
     def __str__(self) -> str:
@@ -169,7 +176,11 @@ class Intentions(models.Model):
 class Happenings(models.Model):
     happening = models.CharField(max_length=2000)
     activity = models.ForeignKey(
-        Activities, null=True, blank=True, on_delete=models.CASCADE
+        Activities,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="happenings",
     )
 
     def __str__(self) -> str:
@@ -179,7 +190,11 @@ class Happenings(models.Model):
 class GratefulFor(models.Model):
     grateful_for = models.CharField(max_length=2000)
     activity = models.ForeignKey(
-        Activities, null=True, blank=True, on_delete=models.CASCADE
+        Activities,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="grateful_for",
     )
 
     def __str__(self) -> str:
@@ -189,7 +204,11 @@ class GratefulFor(models.Model):
 class ActionItems(models.Model):
     action_item = models.CharField(max_length=2000)
     activity = models.ForeignKey(
-        Activities, null=True, blank=True, on_delete=models.CASCADE
+        Activities,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="action_items",
     )
 
     def __str__(self) -> str:

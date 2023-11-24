@@ -7,3 +7,11 @@ tags and automatically capture the date.
 ↓ Click through the different database tabs to filter
 entries by a specific category such as daily or personal.
 """
+
+
+def get_table_defaults(journal):
+    return [
+        {"journal": journal, "table_name": "All entries"},
+        {"journal": journal, "table_name": "Daily entries"},
+        {"journal": journal, "table_name": "Personal entries"},
+    ]

@@ -9,7 +9,16 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from django.utils import timezone
 from datetime import datetime, timedelta
-from core.models import Journal, Tags, Activities, JournalTables
+from core.models import (
+    Journal,
+    Tags,
+    Activities,
+    JournalTables,
+    Intentions,
+    Happenings,
+    ActionItems,
+    GratefulFor,
+)
 from journal.serializers import ActivitiesSerializer
 from django.db.models import Q
 

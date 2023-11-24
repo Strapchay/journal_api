@@ -7,9 +7,11 @@ from drf_spectacular.utils import (
     OpenApiExample,
     OpenApiResponse,
 )
-from rest_framework import viewsets, mixins
+from rest_framework import viewsets, mixins, status
+from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
@@ -76,10 +78,21 @@ class JournalTableViewSet(viewsets.ModelViewSet):
         if journal is not None:
             serializer.save(journal=journal)
 
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            queryset = self.get_object()
+            serializer = self.get_serializer(queryset)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            raise ValidationError(e)
+
     def get_queryset(self):
         """
         Filter queryset to authenticated user
         """
+        # if id is not None:
+        #     return self.queryset.filter(journal__user=self.request.user, id=id)
+
         queryset = self.queryset
         return queryset.filter(journal__user=self.request.user)
 
@@ -277,6 +290,10 @@ class BaseSubModelsViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         if self.request.user.is_authenticated:
             serializer.save()
+
+    # def list(self, request, pk=None):
+    # TODO: implement method
+    # print("thee list request", request.data)
 
     def get_queryset(self):
         if self.request.user.is_authenticated:

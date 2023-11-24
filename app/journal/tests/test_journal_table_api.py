@@ -9,7 +9,16 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from django.utils import timezone
 from datetime import datetime, timedelta
-from core.models import Journal, JournalTables
+from core.models import (
+    Journal,
+    JournalTables,
+    ActionItems,
+    Activities,
+    Intentions,
+    Happenings,
+    GratefulFor,
+    Tags,
+)
 
 CREATE_JOURNAL_URL = reverse("journal:journal-list")
 CREATE_JOURNAL_TABLE_URL = reverse("journal:journaltables-list")
@@ -110,6 +119,52 @@ class PrivateJournalTableApiTests(TestCase):
         res = self.client.post(CREATE_JOURNAL_TABLE_URL, payload)
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+    def test_retrieving_journal_table_activities_with_sub_fields_are_returned_in_response(
+        self,
+    ):
+        """
+        Test retrieving activities with sub_fields are returned in the serialized response
+        """
+        journal_table = JournalTables.objects.create(
+            table_name="New Table", journal=self.journal
+        )
+
+        self.tag1 = Tags.objects.create(
+            tag_name="Daily",
+            tag_user=self.user,
+            tag_color=Tags.Colors.RED,
+            tag_class=Tags.ColorsClasses.RED_CLASS,
+        )
+        self.tag2 = Tags.objects.create(
+            tag_name="Work",
+            tag_user=self.user,
+            tag_color=Tags.Colors.GRAY,
+            tag_class=Tags.ColorsClasses.GRAY_CLASS,
+        )
+
+        activity = Activities.objects.create(
+            name="kldjfsd jdfldsjfd jddfsasf", journal_table=journal_table
+        )
+        activity.tags.add(self.tag1)
+        activity.tags.add(self.tag2)
+
+        intentions = Intentions.objects.create(
+            activity=activity, intention="dkjvlsdj fdjsfkajdf djfdfa"
+        )
+        happenings = Happenings.objects.create(
+            activity=activity, happening="kdlv dfjadjldf fjdsadffd"
+        )
+        grateful_for = GratefulFor.objects.create(
+            activity=activity, grateful_for="kdljvsdj dfjdsjadf"
+        )
+        action_items = ActionItems.objects.create(
+            activity=activity, action_item="kdslj dfdjadfj fdjfadjffd"
+        )
+        url = detail_url(journal_table.id)
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("activities", res.data)
 
     def test_retrieve_journal_table_succeeds(self):
         """

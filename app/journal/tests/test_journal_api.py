@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from django.utils import timezone
 from datetime import datetime, timedelta
-from core.models import Journal, Tags
+from core.models import Journal, JournalTables, Tags
 from journal.serializers import JournalSerializer
 
 CREATE_JOURNAL_URL = reverse("journal:journal-list")
@@ -113,6 +113,37 @@ class PrivateJournalApiTests(TestCase):
         res = self.client.post(CREATE_JOURNAL_URL, self.payload)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
+    def test_journal_is_created_successfully_and_creates_default_tables(self):
+        """
+        Test that creating a journal also creates the default tables for it
+        """
+        self.payload["user"] = self.user.id
+        res = self.client.post(CREATE_JOURNAL_URL, self.payload)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        created_journal = Journal.objects.get(id=res.data["id"])
+        serializer = JournalSerializer(created_journal)
+        journal_tables_count = JournalTables.objects.filter(
+            journal__id=res.data["id"]
+        ).count()
+        self.assertEqual(journal_tables_count, 3)
+        self.assertEqual(res.data, serializer.data)
+
+    def test_journal_is_created_successfully_and_sets_the_default_current_table(self):
+        """
+        Test that creating a journal also sets a default currenttable
+        """
+        self.payload["user"] = self.user.id
+        res = self.client.post(CREATE_JOURNAL_URL, self.payload)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        created_journal = Journal.objects.get(id=res.data["id"])
+        journal_table_first = JournalTables.objects.filter(
+            journal__id=res.data["id"]
+        ).first()
+        self.assertEqual(journal_table_first.id, created_journal.current_table)
+
     def test_admin_tags_copied_for_journal_user(self):
         """
         Tests that the admin default created tags were copied for the journal user
@@ -160,7 +191,6 @@ class PrivateJournalApiTests(TestCase):
         journal = create_journal(**self.payload)
         journal_url = detail_url(journal.id)
         res = self.client.put(journal_url, payload)
-        print(res.data)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
     def test_journal_partial_update_is_successful(self):
@@ -175,6 +205,70 @@ class PrivateJournalApiTests(TestCase):
         journal.refresh_from_db()
         self.assertEqual(payload["journal_name"], journal.journal_name)
 
+    def test_journal_partial_update_of_current_table_sets_a_default(self):
+        """
+        Test that updating a journals current_table sets a default table if the table to be set as current_table does not exist
+        """
+        self.payload["user"] = self.user.id
+        res = self.client.post(CREATE_JOURNAL_URL, self.payload)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        created_journal = Journal.objects.get(id=res.data["id"])
+        journal_table = JournalTables.objects.filter(journal__id=res.data["id"])
+        journal_table.first().delete()
+        journal_table_first = journal_table.first().id
+
+        journal_url = detail_url(res.data["id"])
+        payload = {"journal_name": "Untitled", "current_table": 83923}
+
+        res = self.client.patch(journal_url, payload)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["current_table"], journal_table_first)
+
+    def test_journal_partial_update_of_current_table_is_successful(self):
+        """
+        Test that updating a journals current_table updates to the specified value
+        """
+        self.payload["user"] = self.user.id
+        res = self.client.post(CREATE_JOURNAL_URL, self.payload)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        created_journal = Journal.objects.get(id=res.data["id"])
+        journal_table = JournalTables.objects.filter(journal__id=res.data["id"])
+        journal_table_last = journal_table.last().id
+
+        journal_url = detail_url(res.data["id"])
+        payload = {"journal_name": "Untitled", "current_table": journal_table_last}
+
+        res = self.client.patch(journal_url, payload)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["current_table"], journal_table_last)
+
+    def test_journal_partial_update_of_current_table_cannot_set_default_if_none_exists(
+        self,
+    ):
+        """
+        Test that updating a journals current_table sets a default table if the table to be set as current_table does not exist
+        """
+        self.payload["user"] = self.user.id
+        res = self.client.post(CREATE_JOURNAL_URL, self.payload)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        created_journal = Journal.objects.get(id=res.data["id"])
+        journal_table = JournalTables.objects.filter(journal__id=res.data["id"])
+        journal_table.delete()
+
+        journal_url = detail_url(res.data["id"])
+        payload = {"journal_name": "Untitled", "current_table": 83923}
+
+        res = self.client.patch(journal_url, payload)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(res.data["current_table"], None)
+
     def test_retrieve_journal_for_user(self):
         """
         Test retrieving journal for user
@@ -184,3 +278,18 @@ class PrivateJournalApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         journal.refresh_from_db()
         self.assertEqual(res.data[0]["journal_name"], journal.journal_name)
+
+    def test_retrieve_journal_for_user_returns_linked_journal_tables(self):
+        """
+        Test retrieving created journal returns journal tables linked to it
+        """
+        journal = create_journal(**self.payload)
+        journal_table_payload = {"journal": journal, "table_name": "journal table"}
+        journal_table1 = JournalTables.objects.create(**journal_table_payload)
+        journal_table2 = JournalTables.objects.create(**journal_table_payload)
+
+        res = self.client.get(CREATE_JOURNAL_URL)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        updated_journal = Journal.objects.filter(id=journal.id)
+        serializer = JournalSerializer(updated_journal, many=True)
+        self.assertEqual(res.data, serializer.data)
