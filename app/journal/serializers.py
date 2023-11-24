@@ -86,6 +86,12 @@ class JournalSerializer(serializers.ModelSerializer):
         """
         Create a Journal
         """
+
+        request_user = validated_data.get("user", None)
+
+        if request_user is None:
+            validated_data["user"] = self.context["user"]
+
         journal = Journal.objects.create(**validated_data)
         self.create_copy_default_tags_for_user()
         default_tables = self.create_default_journal_tables_for_journal(journal)
@@ -93,6 +99,7 @@ class JournalSerializer(serializers.ModelSerializer):
         # add initial cur table
         journal.current_table = default_tables[0].id
         journal.save()
+        print("the journal", journal.current_table)
         return journal
 
     def update_current_table(self, instance, attr, value):

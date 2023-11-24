@@ -14,7 +14,8 @@ from dj_rest_auth.serializers import (
     PasswordResetConfirmSerializer,
 )
 from core.models import Journal
-from journal.config import JOURNAL_DESCRIPTION
+from journal.config import JOURNAL_DESCRIPTION, DEFAULT_JOURNAL_NAME
+from journal.serializers import JournalSerializer
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -92,10 +93,23 @@ class UserCreateSerializer(serializers.ModelSerializer):
         """
         Creates a default journal on user's signup
         """
-        user_journal = Journal.objects.create(
-            user=user,
-            journal_description=JOURNAL_DESCRIPTION,
-        )
+        try:
+            self.context["user"] = user
+
+            journal_payload = {
+                "journal_name": DEFAULT_JOURNAL_NAME,
+                "journal_description": JOURNAL_DESCRIPTION,
+                "user": user.id,
+            }
+
+            journal_serializer = JournalSerializer(
+                data=journal_payload, context=self.context
+            )
+            journal_serializer.is_valid(raise_exception=True)
+            journal_serializer.save()
+
+        except Exception as e:
+            print("trig exception user journal table", e)
 
     def create(self, validated_data):
         """

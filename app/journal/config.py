@@ -8,6 +8,8 @@ tags and automatically capture the date.
 entries by a specific category such as daily or personal.
 """
 
+DEFAULT_JOURNAL_NAME = "Untitled"
+
 
 def get_table_defaults(journal):
     return [

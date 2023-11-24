@@ -163,6 +163,7 @@ class PrivateJournalTableApiTests(TestCase):
         )
         url = detail_url(journal_table.id)
         res = self.client.get(url)
+        print("ret res", res.data)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertIn("activities", res.data)
 
