@@ -100,7 +100,7 @@ class JournalTables(models.Model):
 
 
 class Activities(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=3000, null=True, blank=True)
     created = models.DateTimeField(auto_now=True)
     journal_table = models.ForeignKey(
         JournalTables,
