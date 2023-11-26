@@ -293,3 +293,45 @@ class PrivateJournalApiTests(TestCase):
         updated_journal = Journal.objects.filter(id=journal.id)
         serializer = JournalSerializer(updated_journal, many=True)
         self.assertEqual(res.data, serializer.data)
+
+    def test_retrieve_journal_for_user_returns_user_tags(self):
+        """
+        Tests that the admin default created tags were copied for the journal user
+        """
+        self.user.is_superuser = True
+        self.user.save()
+
+        tag1 = Tags.objects.create(
+            tag_name="Daily",
+            tag_user=self.user,
+            tag_color=Tags.Colors.RED,
+            tag_class=Tags.ColorsClasses.RED_CLASS,
+        )
+        tag2 = Tags.objects.create(
+            tag_name="Work",
+            tag_user=self.user,
+            tag_color=Tags.Colors.GRAY,
+            tag_class=Tags.ColorsClasses.GRAY_CLASS,
+        )
+
+        user_payload = self.user_payload.copy()
+        user_payload["email"] = "user2@example.com"
+
+        user = create_user(**user_payload)
+        self.client.force_authenticate(user)
+
+        self.payload["user"] = user.id
+
+        res = self.client.post(CREATE_JOURNAL_URL, self.payload)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        user_tags_count = Tags.objects.filter(tag_user=user).count()
+        self.assertEqual(user_tags_count, 2)
+
+        # retrieve journal
+        url = detail_url(res.data["id"])
+        res = self.client.get(url)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        print("the journal res", res.data)
+        self.assertIn("tags", res.data)

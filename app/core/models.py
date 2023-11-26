@@ -116,16 +116,19 @@ class Activities(models.Model):
 
 class Tags(models.Model):
     class Colors(models.TextChoices):
-        GRAY = "OFF GRAY", "Off Gray"
-        GREEN = "MIDNIGHT GREEN", "Midnight Green"
-        RED = "WINE RED", "Wine Red"
-        ARMY_GREEN = "ARMY GREEN", "Army Green"
-        YELLOW = "YELLOW", "Yellow"
-        BLUE = "LIGHT BLUE", "Light Blue"
-        PEACH = "PEACH", "Peach"
-        TEAL = "TEAL", "Teal"
-        PURPLE = "PURPLE", "Purple"
-        BROWN = "BROWN", "Brown"
+        GRAY = (
+            "Off Gray",
+            "OFF GRAY",
+        )
+        GREEN = "Midnight Green", "MIDNIGHT GREEN"
+        RED = "Wine Red", "WINE RED"
+        ARMY_GREEN = "Army Green", "ARMY GREEN"
+        YELLOW = "Yellow", "YELLOW"
+        BLUE = "Light Blue", "LIGHT BLUE"
+        PEACH = "Peach", "PEACH"
+        TEAL = "Teal", "TEAL"
+        PURPLE = "Deep Purple", "DEEP PURPLE"
+        BROWN = "Brown", "BROWN"
 
     class ColorsClasses(models.TextChoices):
         GRAY_CLASS = "color-gray"

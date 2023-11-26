@@ -19,6 +19,98 @@ import copy
 from journal.config import get_table_defaults
 
 
+class TagsSerializer(serializers.ModelSerializer):
+    """
+    Serializer for serializing the Tags
+    """
+
+    def format_tag_name(self, attrs):
+        return attrs["tag_name"][0].upper() + attrs["tag_name"][1:].lower()
+
+    def validate_tag_matches_color_and_class(self, tag_color, tag_class):
+        """
+        Validates that the tag color and class are relative
+        """
+        if tag_color is not None and tag_class is not None:
+            split_color = tag_color.split(" ")
+            color = (
+                split_color[1].lower()
+                if len(split_color) > 1
+                else split_color[0].lower()
+            )
+
+            if color in tag_class:
+                return True
+            else:
+                raise exceptions.ValidationError(
+                    detail="The tag_color and tag_class has to be relative to each other"
+                )
+
+        raise exceptions.ValidationError(
+            detail="The tag_color and tag_class cannot be empty"
+        )
+
+    def validate(self, attrs):
+        try:
+            tag_model_filter = self.Meta.model.objects.filter(
+                tag_user=self.context["request"].user
+            ).values_list("tag_name", flat=True)
+
+            formatted_tag_name = self.format_tag_name(attrs)
+
+            if self.context["view"].action == "create":
+                if formatted_tag_name in tag_model_filter:
+                    raise exceptions.ValidationError(
+                        detail="Cannot Create Existing Tag"
+                    )
+
+            if attrs["tag_color"] is None or attrs["tag_class"] is None:
+                raise exceptions.ValidationError(
+                    detail="The tag_color and tag_class has to be supplied"
+                )
+
+            self.validate_tag_matches_color_and_class(
+                attrs["tag_color"], attrs["tag_class"]
+            )
+
+            # check if the value gets assigned to the field
+            attrs["tag_name"] = formatted_tag_name
+
+            super().validate(attrs)
+
+            return attrs
+        except KeyError as e:
+            print("tags excep", e)
+            raise exceptions.ValidationError(detail="Invalid Update data provided")
+
+    def create(self, validated_data):
+        user = validated_data.pop("tag_user", self.context["request"].user)
+        tag = Tags.objects.create(
+            tag_user=user,
+            tag_name=validated_data["tag_name"],
+            tag_color=validated_data["tag_color"],
+            tag_class=validated_data["tag_class"],
+        )
+        return tag
+
+    class Meta:
+        model = Tags
+        fields = ["id", "tag_user", "tag_name", "tag_color", "tag_class"]
+        read_only_fields = ["id"]
+        validators = []
+
+
+class JournalTagsSerializer(serializers.ModelSerializer):
+    """
+    Serializer for listing the Journal's Tags
+    """
+
+    class Meta:
+        model = Tags
+        fields = ["id", "tag_name", "tag_color", "tag_class"]
+        read_only_fields = ["id"]
+
+
 class JournalJournalTableSerializer(serializers.ModelSerializer):
     """
     Serializer for listing Journal's Journal Tables
@@ -37,6 +129,7 @@ class JournalSerializer(serializers.ModelSerializer):
     """
 
     journal_tables = JournalJournalTableSerializer(many=True, required=False)
+    tags = JournalTagsSerializer(many=True, source="user.tags", required=False)
 
     class Meta:
         model = Journal
@@ -46,6 +139,7 @@ class JournalSerializer(serializers.ModelSerializer):
             "journal_description",
             "journal_tables",
             "current_table",
+            "tags",
         ]
         read_only_fields = ["id", "journal_tables"]
         default_table_model = JournalTables
@@ -136,80 +230,6 @@ class JournalSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
-
-
-class TagsSerializer(serializers.ModelSerializer):
-    """
-    Serializer for serializing the Tags
-    """
-
-    def format_tag_name(self, attrs):
-        return attrs["tag_name"][0].upper() + attrs["tag_name"][1:].lower()
-
-    def validate_tag_matches_color_and_class(self, tag_color, tag_class):
-        """
-        Validates that the tag color and class are relative
-        """
-        if tag_color is not None and tag_class is not None:
-            split_color = tag_color.split(" ")
-            color = (
-                split_color[1].lower()
-                if len(split_color) > 1
-                else split_color[0].lower()
-            )
-
-            if color in tag_class:
-                return True
-            else:
-                raise exceptions.ValidationError(
-                    detail="The tag_color and tag_class has to be relative to each other"
-                )
-
-        raise exceptions.ValidationError(
-            detail="The tag_color and tag_class cannot be empty"
-        )
-
-    def validate(self, attrs):
-        tag_model_filter = self.Meta.model.objects.filter(
-            tag_user=self.context["request"].user
-        ).values_list("tag_name", flat=True)
-
-        formatted_tag_name = self.format_tag_name(attrs)
-
-        if formatted_tag_name in tag_model_filter:
-            raise exceptions.ValidationError(detail="Cannot Create Existing Tag")
-
-        if attrs["tag_color"] is None or attrs["tag_class"] is None:
-            raise exceptions.ValidationError(
-                detail="The tag_color and tag_class has to be supplied"
-            )
-
-        self.validate_tag_matches_color_and_class(
-            attrs["tag_color"], attrs["tag_class"]
-        )
-
-        # check if the value gets assigned to the field
-        attrs["tag_name"] = formatted_tag_name
-
-        super().validate(attrs)
-
-        return attrs
-
-    def create(self, validated_data):
-        user = validated_data.pop("tag_user", self.context["request"].user)
-        tag = Tags.objects.create(
-            tag_user=user,
-            tag_name=validated_data["tag_name"],
-            tag_color=validated_data["tag_color"],
-            tag_class=validated_data["tag_class"],
-        )
-        return tag
-
-    class Meta:
-        model = Tags
-        fields = ["id", "tag_user", "tag_name", "tag_color", "tag_class"]
-        read_only_fields = ["id"]
-        validators = []
 
 
 class BaseSubModelsSerializer(serializers.ModelSerializer):
@@ -331,7 +351,7 @@ class ActivitiesSerializer(serializers.ModelSerializer):
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
 
-            if len(tags) > 0:
+            if tags is not None:  # len(tags) > 0:
                 instance.tags.clear()
                 for tagId in tags:
                     tag = Tags.objects.get(id=tagId)
