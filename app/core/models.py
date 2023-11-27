@@ -163,6 +163,7 @@ class Tags(models.Model):
 
 
 class Intentions(models.Model):
+    # TODO: add ordering to submodels, and implement re-ordering
     intention = models.CharField(max_length=2000)
     activity = models.ForeignKey(
         Activities,

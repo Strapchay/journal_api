@@ -307,6 +307,7 @@ class ActivitiesSerializer(serializers.ModelSerializer):
 
     def to_internal_value(self, data):
         if self.context["request"].method in ["POST", "PUT", "PATCH"]:
+            print("the datat act int_val", data)
             copied_data = data.copy()
             try:
                 tags = copied_data.pop("tags", None)
@@ -322,9 +323,67 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                 ret = super().to_internal_value(copied_data)
                 ret["tags"] = tags
                 return ret
+            # ret = super().to_internal_value(data)
+            # return ret
+            return data
 
         ret = super().to_internal_value(data)
         return ret
+
+    def get_submodel_field(self, submodel_type):
+        return submodel_type[:-1]
+
+    def get_submodel(self, submodel_type):
+        return {
+            "intentions": Intentions,
+            "happenings": Happenings,
+            "action_items": ActionItems,
+            "grateful_for": GratefulFor,
+        }.get(submodel_type)
+
+    def create_sub_model(self, submodel_type, model_instance, submodel_data):
+        print("create param", [submodel_type, model_instance, submodel_data])
+        try:
+            submodel_field = self.get_submodel_field(submodel_type)
+            submodel_field_value = submodel_data[submodel_field]
+
+            submodel_payload = {
+                submodel_field: submodel_field_value,
+                "activity": model_instance,
+            }
+            submodel_obj = self.get_submodel(submodel_type).objects.create(
+                **submodel_payload
+            )
+            return submodel_obj
+
+        except Exception as e:
+            print("except create trig", e)
+
+    def update_sub_model(
+        self, submodel_type, submodel_data, submodel_id, activity_instance
+    ):
+        print("update params", [submodel_type, submodel_data, submodel_id])
+        try:
+            if submodel_id is not None:
+                submodel_instance = self.get_submodel(submodel_type).objects.get(
+                    id=submodel_id
+                )
+                submodel_field = self.get_submodel_field(submodel_type)
+
+                # set the submodel value on the submodel
+                setattr(
+                    submodel_instance, submodel_field, submodel_data[submodel_field]
+                )
+                # submodel_instance[submodel_field] = submodel_data[submodel_field]
+                submodel_instance.save()
+            else:
+                self.create_sub_model(
+                    submodel_type=submodel_type,
+                    model_instance=activity_instance,
+                    submodel_data=submodel_data,
+                )
+        except Exception as e:
+            print("except trig", e)
 
     def create(self, validated_data):
         try:
@@ -347,7 +406,10 @@ class ActivitiesSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         try:
             tags = validated_data.pop("tags", [])
-
+            intentions = validated_data.pop("intentions", None)
+            # TODO: make sure each update related models calls the submodel to update its field
+            # TODO: add relativeItem/prop for ordering
+            print("the validated data activ serializer", intentions)
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
 
@@ -356,7 +418,38 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                 for tagId in tags:
                     tag = Tags.objects.get(id=tagId)
                     instance.tags.add(tag)
+
+            if intentions is not None:
+                create_intentions = intentions.get("create", None)
+                update_intentions = intentions.get("update", None)
+                update_only = intentions.get("update_only", None) is not None
+                update_and_create = intentions.get("update_and_create", None)
+
+                if update_only:
+                    print("got into update only", update_intentions["id"])
+                    # update submodel
+                    self.update_sub_model(
+                        intentions.get("type", None),
+                        update_intentions,
+                        update_intentions["id"],
+                        instance,
+                    )
+                # TODO: make update fields more generic
+                if update_and_create:
+                    self.create_sub_model(
+                        submodel_type=intentions.get("type", None),
+                        model_instance=instance,
+                        submodel_data=create_intentions,
+                    )
+
+                    self.update_sub_model(
+                        submodel_type=intentions.get("type", None),
+                        submodel_data=update_intentions,
+                        submodel_id=update_intentions["id"],
+                        activity_instance=instance,
+                    )
             instance.save()
+            print(instance)
             return instance
         except Exception as e:
             raise exceptions.ValidationError(detail=e)
