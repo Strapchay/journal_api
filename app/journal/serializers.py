@@ -15,6 +15,7 @@ from core.models import (
 )
 from django.db.models import Q
 from django.db import IntegrityError
+from django.http import QueryDict
 import copy
 from journal.config import get_table_defaults
 
@@ -325,6 +326,10 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                 return ret
             # ret = super().to_internal_value(data)
             # return ret
+            if isinstance(data, QueryDict):
+                ret = super().to_internal_value(data)
+                return ret
+
             return data
 
         ret = super().to_internal_value(data)
@@ -351,6 +356,7 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                 submodel_field: submodel_field_value,
                 "activity": model_instance,
             }
+            print("submodelpld", submodel_payload)
             submodel_obj = self.get_submodel(submodel_type).objects.create(
                 **submodel_payload
             )
@@ -389,7 +395,12 @@ class ActivitiesSerializer(serializers.ModelSerializer):
         try:
             tags = validated_data.pop("tags", [])
 
-            journal_table = validated_data.pop("journal_table", None)
+            journal_table_data = validated_data.pop("journal_table", None)
+            journal_table = (
+                JournalTables.objects.get(id=journal_table_data)
+                if isinstance(journal_table_data, int)
+                else journal_table_data
+            )
 
             activity = Activities.objects.create(
                 name=validated_data["name"], journal_table=journal_table
@@ -405,12 +416,24 @@ class ActivitiesSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         try:
+            submodels_list = [
+                "intentions",
+                "happenings",
+                "action_items",
+                "grateful_for",
+            ]
+            submodels_validated_data = {}
             tags = validated_data.pop("tags", [])
-            intentions = validated_data.pop("intentions", None)
+            for submodels_data in submodels_list:
+                submodels_validated_data[submodels_data] = validated_data.pop(
+                    submodels_data, None
+                )
+            # intentions = validated_data.pop("intentions", None)
             # TODO: make sure each update related models calls the submodel to update its field
             # TODO: add relativeItem/prop for ordering
-            print("the validated data activ serializer", intentions)
+            print("the validated data submodels serializer", submodels_validated_data)
             for attr, value in validated_data.items():
+                print("the attr", attr, value)
                 setattr(instance, attr, value)
 
             if tags is not None:  # len(tags) > 0:
@@ -419,35 +442,36 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                     tag = Tags.objects.get(id=tagId)
                     instance.tags.add(tag)
 
-            if intentions is not None:
-                create_intentions = intentions.get("create", None)
-                update_intentions = intentions.get("update", None)
-                update_only = intentions.get("update_only", None) is not None
-                update_and_create = intentions.get("update_and_create", None)
+            for attr, value in submodels_validated_data.items():
+                if value is not None:
+                    create_submodel_payload = value.get("create", None)
+                    update_submodel_payload = value.get("update", None)
+                    update_only = value.get("update_only", None) is not None
+                    update_and_create = value.get("update_and_create", None)
 
-                if update_only:
-                    print("got into update only", update_intentions["id"])
-                    # update submodel
-                    self.update_sub_model(
-                        intentions.get("type", None),
-                        update_intentions,
-                        update_intentions["id"],
-                        instance,
-                    )
-                # TODO: make update fields more generic
-                if update_and_create:
-                    self.create_sub_model(
-                        submodel_type=intentions.get("type", None),
-                        model_instance=instance,
-                        submodel_data=create_intentions,
-                    )
+                    if update_only:
+                        print("got into update only", update_submodel_payload["id"])
+                        # update submodel
+                        self.update_sub_model(
+                            value.get("type", None),
+                            update_submodel_payload,
+                            update_submodel_payload["id"],
+                            instance,
+                        )
+                    # TODO: make update fields more generic
+                    if update_and_create:
+                        self.create_sub_model(
+                            submodel_type=value.get("type", None),
+                            model_instance=instance,
+                            submodel_data=create_submodel_payload,
+                        )
 
-                    self.update_sub_model(
-                        submodel_type=intentions.get("type", None),
-                        submodel_data=update_intentions,
-                        submodel_id=update_intentions["id"],
-                        activity_instance=instance,
-                    )
+                        self.update_sub_model(
+                            submodel_type=value.get("type", None),
+                            submodel_data=update_submodel_payload,
+                            submodel_id=update_submodel_payload["id"],
+                            activity_instance=instance,
+                        )
             instance.save()
             print(instance)
             return instance

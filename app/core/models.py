@@ -216,4 +216,4 @@ class ActionItems(models.Model):
     )
 
     def __str__(self) -> str:
-        return self.action_items
+        return self.action_item

@@ -270,6 +270,79 @@ class PrivateActivitiesApiTests(TestCase):
         activities_url = detail_url(activities.id)
         payload = {"name": "kdv ef"}
         res = self.client.patch(activities_url, payload)
+        print("res partial update", res.data)
         activities.refresh_from_db()
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(payload["name"], activities.name)
+
+    def test_partial_update_of_a_submodel_activity(self):
+        """
+        Test a patch update of an activity submodel
+        """
+        journal_table = JournalTables.objects.create(
+            table_name="New Table", journal=self.journal
+        )
+
+        activities = Activities.objects.create(
+            name="Kdf sfsdf",
+            journal_table=journal_table,
+        )
+        activities.tags.add(self.tag1)
+        activities.tags.add(self.tag2)
+        self.client.force_authenticate(self.user)
+
+        submodel_payload = {
+            "intentions": {
+                "activity": activities.id,
+                "create": {"intention": "lkdsjflkdfdfs"},
+                "update": {"id": None, "intention": "kdlfjiodfsdf"},
+                "update_and_create": True,
+                "type": "intentions",
+            }
+        }
+
+        activities_url = detail_url(activities.id)
+        res = self.client.patch(activities_url, submodel_payload, format="json")
+        activities.refresh_from_db()
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        print("rees", res.data)
+        self.assertEqual(len(res.data["intentions"]), 2)
+
+    def test_partial_update_of_an_activity_submodel_activity(self):
+        """
+        Test a patch update of a submodel from the activity
+        """
+        journal_table = JournalTables.objects.create(
+            table_name="New Table", journal=self.journal
+        )
+
+        activities = Activities.objects.create(
+            name="Kdf sfsdf",
+            journal_table=journal_table,
+        )
+        activities.tags.add(self.tag1)
+        activities.tags.add(self.tag2)
+        self.client.force_authenticate(self.user)
+        intention_upd = Intentions.objects.create(
+            intention="created inteention", activity=activities
+        )
+
+        submodel_payload = {
+            "intentions": {
+                "activity": activities.id,
+                "update": {"id": intention_upd.id, "intention": "kdlfjiodfsdf"},
+                "update_only": True,
+                "type": "intentions",
+            }
+        }
+
+        activities_url = detail_url(activities.id)
+        res = self.client.patch(activities_url, submodel_payload, format="json")
+        activities.refresh_from_db()
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        print("rees", res.data)
+        self.assertEqual(len(res.data["intentions"]), 1)
+        self.assertEqual(
+            res.data["intentions"][0]["intention"],
+            submodel_payload["intentions"]["update"]["intention"],
+        )
