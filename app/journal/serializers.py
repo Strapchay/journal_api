@@ -17,7 +17,7 @@ from django.db.models import Q
 from django.db import IntegrityError
 from django.http import QueryDict
 import copy
-from journal.config import get_table_defaults
+from journal.config import get_table_defaults, SUBMODELS_LIST
 
 
 class TagsSerializer(serializers.ModelSerializer):
@@ -346,6 +346,18 @@ class ActivitiesSerializer(serializers.ModelSerializer):
             "grateful_for": GratefulFor,
         }.get(submodel_type)
 
+    def create_default_submodels(self, model):
+        # create default submodels
+        for submodel in SUBMODELS_LIST:
+            submodel_payload = {
+                "activity": model,
+            }
+            if submodel != "grateful_for":
+                submodel_payload[self.get_submodel_field(submodel)] = ""
+            else:
+                submodel_payload[submodel] = ""
+            self.get_submodel(submodel).objects.create(**submodel_payload)
+
     def create_sub_model(self, submodel_type, model_instance, submodel_data):
         print("create param", [submodel_type, model_instance, submodel_data])
         try:
@@ -410,18 +422,16 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                 for tagId in tags:
                     tag = Tags.objects.get(id=int(tagId))
                     activity.tags.add(tag)
+
+            self.create_default_submodels(activity)
+
             return activity
         except Exception as e:
             raise exceptions.ValidationError(detail=e)
 
     def update(self, instance, validated_data):
         try:
-            submodels_list = [
-                "intentions",
-                "happenings",
-                "action_items",
-                "grateful_for",
-            ]
+            submodels_list = SUBMODELS_LIST
             submodels_validated_data = {}
             tags = validated_data.pop("tags", [])
             for submodels_data in submodels_list:

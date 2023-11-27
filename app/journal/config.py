@@ -10,6 +10,13 @@ entries by a specific category such as daily or personal.
 
 DEFAULT_JOURNAL_NAME = "Untitled"
 
+SUBMODELS_LIST = [
+    "intentions",
+    "happenings",
+    "action_items",
+    "grateful_for",
+]
+
 
 def get_table_defaults(journal):
     return [

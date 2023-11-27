@@ -170,6 +170,36 @@ class PrivateActivitiesApiTests(TestCase):
         serializer = ActivitiesSerializer(activity, many=True)
         self.assertQuerySetEqual(serializer.data[0]["tags"], res.data["tags"])
 
+    def test_create_activities_creates_default_submodels(self):
+        """
+        Test create activities for authenticated user is successful
+        """
+
+        journal_table = JournalTables.objects.create(
+            table_name="New Table", journal=self.journal
+        )
+
+        payload = {
+            "name": "ldskjfafd",
+            "journal_table": journal_table.id,
+            "tags": [self.tag1.id, self.tag2.id],  # values(),  # values(),
+        }
+
+        res = self.client.post(ACTIVITIES_URL, payload)
+        print("default models activ", res.data)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        activity = Activities.objects.filter(journal_table=journal_table).first()
+
+        intention = Intentions.objects.filter(activity=activity).count()
+        happening = Happenings.objects.filter(activity=activity).count()
+        action_item = ActionItems.objects.filter(activity=activity).count()
+        grateful_for = GratefulFor.objects.filter(activity=activity).count()
+
+        total_submodels = intention + happening + action_item + grateful_for
+
+        self.assertEqual(total_submodels, 4)
+
     def test_remove_activites_for_other_user_by_current_user_fails(self):
         """
         Test that a current user cannot remove activities for another user
