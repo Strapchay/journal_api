@@ -548,4 +548,3 @@ class PrivateActivitiesApiTests(TestCase):
             intention3.id,
         ]
         self.assertEqual(expected_ordering_list, list(intentions_list))
-        # TODO: get the id of the newly created submodel as well and comp

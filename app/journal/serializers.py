@@ -411,6 +411,24 @@ class ActivitiesSerializer(serializers.ModelSerializer):
         except Exception as e:
             print("except trig", e)
 
+    def update_submodel_ordering(self, model_type, ordering_payload):
+        submodel_type = model_type.get("type", None)
+        submodel_ids = list(map(lambda x: x["id"], ordering_payload))
+        submodel_orderings = list(map(lambda x: x["ordering"], ordering_payload))
+
+        submodel_model = self.get_submodel(submodel_type)
+        submodel_instances = submodel_model.objects.filter(id__in=submodel_ids)
+        print("submod insts", submodel_instances)
+        submodels_update_list = []
+        for i, submodel in enumerate(submodel_instances):
+            submodel.ordering = submodel_orderings[i]
+            submodels_update_list.append(submodel)
+        try:
+            submodel_model.objects.bulk_update(submodels_update_list, ["ordering"])
+            return submodels_update_list
+        except IntegrityError as e:
+            raise serializers.ValidationError(detail=e)
+
     def create(self, validated_data):
         try:
             tags = validated_data.pop("tags", [])
@@ -487,29 +505,7 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                             activity_instance=instance,
                         )
                     if ordering_submodel_payload is not None:
-                        submodel_type = value.get("type", None)
-                        submodel_ids = list(
-                            map(lambda x: x["id"], ordering_submodel_payload)
-                        )
-                        submodel_orderings = list(
-                            map(lambda x: x["ordering"], ordering_submodel_payload)
-                        )
-
-                        submodel_model = self.get_submodel(submodel_type)
-                        submodel_instances = submodel_model.objects.filter(
-                            id__in=submodel_ids
-                        )
-                        print("submod insts", submodel_instances)
-                        submodels_update_list = []
-                        for i, submodel in enumerate(submodel_instances):
-                            submodel.ordering = submodel_orderings[i]
-                            submodels_update_list.append(submodel)
-                        try:
-                            submodel_model.objects.bulk_update(
-                                submodels_update_list, ["ordering"]
-                            )
-                        except IntegrityError as e:
-                            raise serializers.ValidationError(detail=e)
+                        self.update_submodel_ordering(value, ordering_submodel_payload)
 
             # TODO: add relativeItem/prop for ordering
             if submodels_validated_data.get("action_items", None) is not None:
