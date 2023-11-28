@@ -277,7 +277,6 @@ class PrivateUserApiTests(TestCase):
         """
         res = self.client.get(ME_URL)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        print("ther res data", res.data)
         user = self.payload
         user.pop("password")
         self.assertEqual(res.data, user)

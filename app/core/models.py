@@ -6,7 +6,7 @@ from django.contrib.auth.models import (
 )
 from django.conf import settings
 from django.db.models.constraints import UniqueConstraint
-from django.db.models import Q
+from django.db.models import Q, Max
 import random
 import string
 
@@ -109,6 +109,25 @@ class Activities(models.Model):
         blank=True,
         related_name="activities",
     )
+    ordering = models.IntegerField(null=True, blank=True)
+
+    @property
+    def increment_ordering(self):
+        journal_table_activities = Activities.objects.filter(
+            journal_table=self.journal_table
+        )
+        journal_table_activities_count = journal_table_activities.count()
+        if journal_table_activities_count == 0:
+            self.ordering = 1
+            # self.save()
+        elif journal_table_activities_count > 0:
+            highest_ordering = journal_table_activities.aggregate(Max("ordering"))
+            self.ordering = highest_ordering["ordering__max"] + 1
+            # self.save()
+
+    def save(self, *args, **kwargs):
+        self.increment_ordering
+        super(Activities, self).save(*args, **kwargs)
 
     def __str__(self) -> str:
         return self.name
@@ -162,7 +181,33 @@ class Tags(models.Model):
         return self.tag_name
 
 
-class Intentions(models.Model):
+class BaseSubModel(models.Model):
+    """
+    Should be subclassed by every submodels that have to define a common property
+    """
+
+    @property
+    def increment_ordering(self):
+        submodel_instances = self.__class__.objects.filter(activity=self.activity)
+        submodel_instances_count = submodel_instances.count()
+        if submodel_instances_count == 0:
+            self.ordering = 1
+            # self.save()
+        elif submodel_instances_count > 0:
+            highest_ordering = submodel_instances.aggregate(Max("ordering"))
+            self.ordering = highest_ordering["ordering__max"] + 1
+            # self.save()
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        if self.ordering is None:
+            self.increment_ordering
+        super().save(*args, **kwargs)
+
+
+class Intentions(BaseSubModel):
     # TODO: add ordering to submodels, and implement re-ordering
     intention = models.CharField(max_length=2000)
     activity = models.ForeignKey(
@@ -172,12 +217,16 @@ class Intentions(models.Model):
         on_delete=models.CASCADE,
         related_name="intentions",
     )
+    ordering = models.IntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.intention
 
+    class Meta:
+        ordering = ["ordering"]  # ["id"]
 
-class Happenings(models.Model):
+
+class Happenings(BaseSubModel):
     happening = models.CharField(max_length=2000)
     activity = models.ForeignKey(
         Activities,
@@ -186,12 +235,16 @@ class Happenings(models.Model):
         on_delete=models.CASCADE,
         related_name="happenings",
     )
+    ordering = models.IntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.happening
 
+    class Meta:
+        ordering = ["ordering"]  # ["id"]
 
-class GratefulFor(models.Model):
+
+class GratefulFor(BaseSubModel):
     grateful_for = models.CharField(max_length=2000)
     activity = models.ForeignKey(
         Activities,
@@ -200,13 +253,18 @@ class GratefulFor(models.Model):
         on_delete=models.CASCADE,
         related_name="grateful_for",
     )
+    ordering = models.IntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.grateful_for
 
+    class Meta:
+        ordering = ["ordering"]  # ["id"]
 
-class ActionItems(models.Model):
+
+class ActionItems(BaseSubModel):
     action_item = models.CharField(max_length=2000)
+    checked = models.BooleanField(default=False)
     activity = models.ForeignKey(
         Activities,
         null=True,
@@ -214,6 +272,10 @@ class ActionItems(models.Model):
         on_delete=models.CASCADE,
         related_name="action_items",
     )
+    ordering = models.IntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
         return self.action_item
+
+    class Meta:
+        ordering = ["ordering"]  # ["id"]

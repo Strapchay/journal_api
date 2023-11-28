@@ -81,7 +81,6 @@ class TagsSerializer(serializers.ModelSerializer):
 
             return attrs
         except KeyError as e:
-            print("tags excep", e)
             raise exceptions.ValidationError(detail="Invalid Update data provided")
 
     def create(self, validated_data):
@@ -198,7 +197,6 @@ class JournalSerializer(serializers.ModelSerializer):
         # add initial cur table
         journal.current_table = default_tables[0].id
         journal.save()
-        print("the journal", journal.current_table)
         return journal
 
     def update_current_table(self, instance, attr, value):
@@ -260,28 +258,28 @@ class BaseSubModelsSerializer(serializers.ModelSerializer):
 class IntentionsSerializer(BaseSubModelsSerializer):
     class Meta:
         model = Intentions
-        fields = ["id", "intention", "activity"]
+        fields = ["id", "intention", "activity", "ordering"]
         read_only_fields = ["id"]
 
 
 class HappeningsSerializer(BaseSubModelsSerializer):
     class Meta:
         model = Happenings
-        fields = ["id", "happening", "activity"]
+        fields = ["id", "happening", "activity", "ordering"]
         read_only_fields = ["id"]
 
 
 class GratefulForSerializer(BaseSubModelsSerializer):
     class Meta:
         model = GratefulFor
-        fields = ["id", "grateful_for", "activity"]
+        fields = ["id", "grateful_for", "activity", "ordering"]
         read_only_fields = ["id"]
 
 
 class ActionItemsSerializer(BaseSubModelsSerializer):
     class Meta:
         model = ActionItems
-        fields = ["id", "action_item", "activity"]
+        fields = ["id", "action_item", "activity", "checked", "ordering"]
         read_only_fields = ["id"]
 
 
@@ -308,7 +306,6 @@ class ActivitiesSerializer(serializers.ModelSerializer):
 
     def to_internal_value(self, data):
         if self.context["request"].method in ["POST", "PUT", "PATCH"]:
-            print("the datat act int_val", data)
             copied_data = data.copy()
             try:
                 tags = copied_data.pop("tags", None)
@@ -336,6 +333,8 @@ class ActivitiesSerializer(serializers.ModelSerializer):
         return ret
 
     def get_submodel_field(self, submodel_type):
+        if submodel_type == "grateful_for":
+            return submodel_type
         return submodel_type[:-1]
 
     def get_submodel(self, submodel_type):
@@ -351,15 +350,25 @@ class ActivitiesSerializer(serializers.ModelSerializer):
         for submodel in SUBMODELS_LIST:
             submodel_payload = {
                 "activity": model,
+                self.get_submodel_field(submodel): "",
             }
-            if submodel != "grateful_for":
-                submodel_payload[self.get_submodel_field(submodel)] = ""
-            else:
-                submodel_payload[submodel] = ""
+
             self.get_submodel(submodel).objects.create(**submodel_payload)
 
+    def update_action_items_checked(self, submodel):
+        try:
+            if submodel is not None and submodel["update_checked"]:
+                action_item_submodel = self.get_submodel(submodel["type"]).objects.get(
+                    id=submodel["id"]
+                )
+                action_item_submodel.checked = submodel["checked"]
+                action_item_submodel.save()
+                return action_item_submodel
+            return submodel
+        except Exception as e:
+            print("check excp", e)
+
     def create_sub_model(self, submodel_type, model_instance, submodel_data):
-        print("create param", [submodel_type, model_instance, submodel_data])
         try:
             submodel_field = self.get_submodel_field(submodel_type)
             submodel_field_value = submodel_data[submodel_field]
@@ -368,7 +377,8 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                 submodel_field: submodel_field_value,
                 "activity": model_instance,
             }
-            print("submodelpld", submodel_payload)
+            if submodel_data.get("relative_item") is not None:
+                submodel_payload["ordering"] = submodel_data["ordering"]
             submodel_obj = self.get_submodel(submodel_type).objects.create(
                 **submodel_payload
             )
@@ -380,7 +390,6 @@ class ActivitiesSerializer(serializers.ModelSerializer):
     def update_sub_model(
         self, submodel_type, submodel_data, submodel_id, activity_instance
     ):
-        print("update params", [submodel_type, submodel_data, submodel_id])
         try:
             if submodel_id is not None:
                 submodel_instance = self.get_submodel(submodel_type).objects.get(
@@ -392,7 +401,6 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                 setattr(
                     submodel_instance, submodel_field, submodel_data[submodel_field]
                 )
-                # submodel_instance[submodel_field] = submodel_data[submodel_field]
                 submodel_instance.save()
             else:
                 self.create_sub_model(
@@ -434,16 +442,13 @@ class ActivitiesSerializer(serializers.ModelSerializer):
             submodels_list = SUBMODELS_LIST
             submodels_validated_data = {}
             tags = validated_data.pop("tags", [])
+
             for submodels_data in submodels_list:
                 submodels_validated_data[submodels_data] = validated_data.pop(
                     submodels_data, None
                 )
-            # intentions = validated_data.pop("intentions", None)
-            # TODO: make sure each update related models calls the submodel to update its field
-            # TODO: add relativeItem/prop for ordering
-            print("the validated data submodels serializer", submodels_validated_data)
+
             for attr, value in validated_data.items():
-                print("the attr", attr, value)
                 setattr(instance, attr, value)
 
             if tags is not None:  # len(tags) > 0:
@@ -456,11 +461,11 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                 if value is not None:
                     create_submodel_payload = value.get("create", None)
                     update_submodel_payload = value.get("update", None)
+                    ordering_submodel_payload = value.get("ordering_list", None)
                     update_only = value.get("update_only", None) is not None
                     update_and_create = value.get("update_and_create", None)
 
                     if update_only:
-                        print("got into update only", update_submodel_payload["id"])
                         # update submodel
                         self.update_sub_model(
                             value.get("type", None),
@@ -468,7 +473,6 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                             update_submodel_payload["id"],
                             instance,
                         )
-                    # TODO: make update fields more generic
                     if update_and_create:
                         self.create_sub_model(
                             submodel_type=value.get("type", None),
@@ -482,6 +486,39 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                             submodel_id=update_submodel_payload["id"],
                             activity_instance=instance,
                         )
+                    if ordering_submodel_payload is not None:
+                        submodel_type = value.get("type", None)
+                        submodel_ids = list(
+                            map(lambda x: x["id"], ordering_submodel_payload)
+                        )
+                        submodel_orderings = list(
+                            map(lambda x: x["ordering"], ordering_submodel_payload)
+                        )
+
+                        submodel_model = self.get_submodel(submodel_type)
+                        submodel_instances = submodel_model.objects.filter(
+                            id__in=submodel_ids
+                        )
+                        print("submod insts", submodel_instances)
+                        submodels_update_list = []
+                        for i, submodel in enumerate(submodel_instances):
+                            submodel.ordering = submodel_orderings[i]
+                            submodels_update_list.append(submodel)
+                        try:
+                            submodel_model.objects.bulk_update(
+                                submodels_update_list, ["ordering"]
+                            )
+                        except IntegrityError as e:
+                            raise serializers.ValidationError(detail=e)
+
+            # TODO: add relativeItem/prop for ordering
+            if submodels_validated_data.get("action_items", None) is not None:
+                self.update_action_items_checked(
+                    submodels_validated_data["action_items"].get(
+                        "update_action_item_checked", None
+                    )
+                )
+
             instance.save()
             print(instance)
             return instance
@@ -499,6 +536,7 @@ class ActivitiesSerializer(serializers.ModelSerializer):
             "happenings",
             "grateful_for",
             "action_items",
+            "ordering",
         ]
         read_only_fields = ["id"]
 

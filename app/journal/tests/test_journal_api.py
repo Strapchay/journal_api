@@ -333,5 +333,4 @@ class PrivateJournalApiTests(TestCase):
         res = self.client.get(url)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        print("the journal res", res.data)
         self.assertIn("tags", res.data)
