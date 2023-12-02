@@ -81,30 +81,14 @@ class BatchDuplicateActivitiesSerializer(
                 related_objects = list(related_object_manager.all())
 
                 if related_objects:
-                    print("reel obj to cp", len(related_objects))
                     related_objects_to_copy += related_objects
 
-            # elif field.many_to_one:
-            #     print("m21", field.name)
-            # if _new_parent_pk:
-            #     print("m2m m21 paren pk", _new_parent_pk)
-
-            #     kwargs[field.name + "_id"] = _new_parent_pk
-
             elif field.many_to_many and hasattr(field, "field"):  # not
-                print("got into m2m", field.name)
                 related_object_manager = getattr(instance, field.name)
 
                 relations = list(related_object_manager.all())
                 if relations:
-                    print("m2m rel to seeet", relations)
                     relations_to_set[field.name] = relations
-            # elif field.many_to_many and hasattr(field, "field"):
-            #     print("attr", getattr(field, "field"))
-            #     print("m2m with fieeld attr", field.name)
-            # elif field.concrete:
-            # print("conc field", field.name)
-            # kwargs[field.name] = getattr(instance, field.name)
             else:
                 pass
 
@@ -114,7 +98,6 @@ class BatchDuplicateActivitiesSerializer(
             instance = callback(instance)
 
         instance.save()
-        print("cp par inst", str(instance))
 
         for related_object in related_objects_to_copy:
             for related_object_field in related_object._meta.fields:
@@ -122,7 +105,6 @@ class BatchDuplicateActivitiesSerializer(
                     setattr(related_object, related_object_field.name, instance)
                     new_related_object = self.duplicate_model(related_object)
                     new_related_object.save()
-                    print("copieed child obj", str(related_object))
 
         for field_name, relations in relations_to_set.items():
             field = getattr(instance, field_name)
@@ -130,40 +112,18 @@ class BatchDuplicateActivitiesSerializer(
             text_relations = []
             for relation in relations:
                 text_relations.append(str(relation))
-            print("m2m set field", field_name, text_relations)
-
         return instance
 
     def create(self, validated_data):
         """
         Create Duplicated Activities Items
         """
-        # list of all models linked to the model to be duplicated
-        white_list = [
-            "tags",
-            "intentions",
-            "happenings",
-            "grateful_for",
-            "action_items",
-            "journal_table",
-        ]
         activities_to_duplicate = Activities.objects.filter(
             id__in=validated_data[0]["ids"]
         )
-        acts_id = [activity.id for activity in activities_to_duplicate]
-        duplicates_to_create = []
-
-        for activity in activities_to_duplicate:
-            # cloned_activity = activity.make_clone()  # copy.deepcopy(activity)
-            # cloned_activity.id = None
-            duplicates_to_create.append(self.duplicate_model(activity))
-        print("the dups to creete", duplicates_to_create)
-        dups_id = [dups.id for dups in duplicates_to_create]
-        print("act dups", [acts_id], dups_id)
-        # try:
-        # self.child.Meta.model.objects.bulk_create(duplicates_to_create)
-        # except IntegrityError as e:
-        #     raise serializers.ValidationError(detail=e)
+        duplicates_to_create = [
+            self.duplicate_model(activity) for activity in activities_to_duplicate
+        ]
 
         return duplicates_to_create
 
