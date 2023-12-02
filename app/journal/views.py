@@ -26,6 +26,12 @@ from core.models import (
     GratefulFor,
 )
 from journal import serializers
+from journal.mixins import (
+    BatchRouteMixin,
+    BatchUpdateActivitiesRouteMixin,
+    BatchDeleteActivitiesRouteMixin,
+    BatchDuplicateActivitiesRouteMixin,
+)
 
 
 class JournalViewSet(viewsets.ModelViewSet):
@@ -265,7 +271,13 @@ class TagsViewSet(viewsets.ModelViewSet):
         ],
     ),
 )
-class ActivitiesViewSet(viewsets.ModelViewSet):
+class ActivitiesViewSet(
+    BatchRouteMixin,
+    BatchUpdateActivitiesRouteMixin,
+    BatchDeleteActivitiesRouteMixin,
+    BatchDuplicateActivitiesRouteMixin,
+    viewsets.ModelViewSet,
+):
     """
     Viewset for creating a journal table activities
     """
@@ -278,8 +290,13 @@ class ActivitiesViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save()
 
-    def get_queryset(self):
+    def get_queryset(self, ids=None):
         if self.request.user.is_authenticated:
+            if ids:
+                return self.queryset.filter(
+                    journal_table__journal__user=self.request.user, id__in=ids
+                )
+
             return self.queryset.filter(journal_table__journal__user=self.request.user)
 
 

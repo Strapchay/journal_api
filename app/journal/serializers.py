@@ -13,11 +13,190 @@ from core.models import (
     Intentions,
     GratefulFor,
 )
+from journal.mixins import (
+    BatchUpdateActivitiesSerializerMixin,
+    BatchDuplicateActivitiesSerializerMixin,
+)
+
 from django.db.models import Q
 from django.db import IntegrityError
 from django.http import QueryDict
 import copy
 from journal.config import get_table_defaults, SUBMODELS_LIST
+import copy
+from collections import OrderedDict
+
+
+class BatchUpdateActivitiesSerializer(
+    serializers.ListSerializer, BatchUpdateActivitiesSerializerMixin
+):
+    """
+    Serializer for Activities for updating batch activities
+    """
+
+    def update(self, instance, validated_data):
+        """
+        Update Activities Items
+        """
+        tag_list = validated_data[0].pop("tags", None)
+        tags_instance = Tags.objects.filter(id__in=tag_list)
+        obj_result = []
+        for i, instance_obj in enumerate(instance):
+            instance_obj.tags.clear()
+            instance_obj.tags.add(*tags_instance)
+
+        return instance
+
+    class Meta:
+        fields = [
+            "id",
+            "name",
+            "tags",
+            "journal_table",
+            "intentions",
+            "happenings",
+            "grateful_for",
+            "action_items",
+            "ordering",
+        ]
+
+
+class BatchDuplicateActivitiesSerializer(
+    BatchDuplicateActivitiesSerializerMixin,
+    serializers.ListSerializer,
+):
+    """
+    Serializer for Activities for duplicating batch activities
+    """
+
+    def duplicate_model(self, instance, callback=None):
+        related_objects_to_copy = []
+        relations_to_set = {}
+
+        for field in instance._meta.get_fields():
+            if field.name == "id":
+                pass
+            elif field.one_to_many:
+                related_object_manager = getattr(instance, field.get_accessor_name())
+                related_objects = list(related_object_manager.all())
+
+                if related_objects:
+                    print("reel obj to cp", len(related_objects))
+                    related_objects_to_copy += related_objects
+
+            # elif field.many_to_one:
+            #     print("m21", field.name)
+            # if _new_parent_pk:
+            #     print("m2m m21 paren pk", _new_parent_pk)
+
+            #     kwargs[field.name + "_id"] = _new_parent_pk
+
+            elif field.many_to_many and hasattr(field, "field"):  # not
+                print("got into m2m", field.name)
+                related_object_manager = getattr(instance, field.name)
+
+                relations = list(related_object_manager.all())
+                if relations:
+                    print("m2m rel to seeet", relations)
+                    relations_to_set[field.name] = relations
+            # elif field.many_to_many and hasattr(field, "field"):
+            #     print("attr", getattr(field, "field"))
+            #     print("m2m with fieeld attr", field.name)
+            # elif field.concrete:
+            # print("conc field", field.name)
+            # kwargs[field.name] = getattr(instance, field.name)
+            else:
+                pass
+
+        instance.pk = None
+
+        if callback and callable(callback):
+            instance = callback(instance)
+
+        instance.save()
+        print("cp par inst", str(instance))
+
+        for related_object in related_objects_to_copy:
+            for related_object_field in related_object._meta.fields:
+                if related_object_field.related_model == instance.__class__:
+                    setattr(related_object, related_object_field.name, instance)
+                    new_related_object = self.duplicate_model(related_object)
+                    new_related_object.save()
+                    print("copieed child obj", str(related_object))
+
+        for field_name, relations in relations_to_set.items():
+            field = getattr(instance, field_name)
+            field.set(relations)
+            text_relations = []
+            for relation in relations:
+                text_relations.append(str(relation))
+            print("m2m set field", field_name, text_relations)
+
+        return instance
+
+    def create(self, validated_data):
+        """
+        Create Duplicated Activities Items
+        """
+        # list of all models linked to the model to be duplicated
+        white_list = [
+            "tags",
+            "intentions",
+            "happenings",
+            "grateful_for",
+            "action_items",
+            "journal_table",
+        ]
+        activities_to_duplicate = Activities.objects.filter(
+            id__in=validated_data[0]["ids"]
+        )
+        acts_id = [activity.id for activity in activities_to_duplicate]
+        duplicates_to_create = []
+
+        for activity in activities_to_duplicate:
+            # cloned_activity = activity.make_clone()  # copy.deepcopy(activity)
+            # cloned_activity.id = None
+            duplicates_to_create.append(self.duplicate_model(activity))
+        print("the dups to creete", duplicates_to_create)
+        dups_id = [dups.id for dups in duplicates_to_create]
+        print("act dups", [acts_id], dups_id)
+        # try:
+        # self.child.Meta.model.objects.bulk_create(duplicates_to_create)
+        # except IntegrityError as e:
+        #     raise serializers.ValidationError(detail=e)
+
+        return duplicates_to_create
+
+    class Meta:
+        fields = [
+            "id",
+            "name",
+            "tags",
+            "journal_table",
+            "intentions",
+            "happenings",
+            "grateful_for",
+            "action_items",
+            "ordering",
+        ]
+
+
+class ListSerializerClassInitMixin:
+    list_serializer_type_classes = {
+        "batch_update_activities": BatchUpdateActivitiesSerializer,
+        "batch_duplicate_activities": BatchDuplicateActivitiesSerializer,
+    }
+
+    def __init__(self, *args, **kwargs) -> None:
+        list_serializer_type = kwargs.pop("type", None)
+
+        super().__init__(*args, **kwargs)
+
+        if list_serializer_type is not None:
+            print("the list seriatype", list_serializer_type)
+            self.Meta.list_serializer_class = self.list_serializer_type_classes[
+                list_serializer_type
+            ]
 
 
 class TagsSerializer(serializers.ModelSerializer):
@@ -293,7 +472,7 @@ class ActivitiesTagsSerializer(serializers.ModelSerializer):
         fields = ["id", "tag_color", "tag_name", "tag_class"]
 
 
-class ActivitiesSerializer(serializers.ModelSerializer):
+class ActivitiesSerializer(ListSerializerClassInitMixin, serializers.ModelSerializer):
     """
     Serializer for serializing the Activities
     """
@@ -305,7 +484,10 @@ class ActivitiesSerializer(serializers.ModelSerializer):
     action_items = ActionItemsSerializer(many=True, required=False)
 
     def to_internal_value(self, data):
-        if self.context["request"].method in ["POST", "PUT", "PATCH"]:
+        if (
+            self.context["request"].method in ["POST", "PUT", "PATCH"]
+            and self.context.get("batch_duplicate_activities", None) is None
+        ):
             copied_data = data.copy()
             try:
                 tags = copied_data.pop("tags", None)
@@ -397,6 +579,7 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                 )
                 submodel_field = self.get_submodel_field(submodel_type)
 
+                print("the submodel datat to update wth", submodel_data)
                 # set the submodel value on the submodel
                 setattr(
                     submodel_instance, submodel_field, submodel_data[submodel_field]
@@ -439,10 +622,12 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                 if isinstance(journal_table_data, int)
                 else journal_table_data
             )
-
+            print("journal table", journal_table)
+            print("val data", validated_data)
             activity = Activities.objects.create(
                 name=validated_data["name"], journal_table=journal_table
             )
+            print("the activity", activity)
 
             if len(tags) > 0:
                 for tagId in tags:
@@ -453,13 +638,15 @@ class ActivitiesSerializer(serializers.ModelSerializer):
 
             return activity
         except Exception as e:
+            print("triggered activ create", e)
             raise exceptions.ValidationError(detail=e)
 
     def update(self, instance, validated_data):
         try:
+            # TODO: add the ordering list for thee activities update itself
             submodels_list = SUBMODELS_LIST
             submodels_validated_data = {}
-            tags = validated_data.pop("tags", [])
+            tags = validated_data.pop("tags", None)
 
             for submodels_data in submodels_list:
                 submodels_validated_data[submodels_data] = validated_data.pop(
@@ -504,7 +691,10 @@ class ActivitiesSerializer(serializers.ModelSerializer):
                             submodel_id=update_submodel_payload["id"],
                             activity_instance=instance,
                         )
-                    if ordering_submodel_payload is not None:
+                    if (
+                        ordering_submodel_payload is not None
+                        and len(ordering_submodel_payload) > 0
+                    ):
                         self.update_submodel_ordering(value, ordering_submodel_payload)
 
             # TODO: add relativeItem/prop for ordering
@@ -522,6 +712,7 @@ class ActivitiesSerializer(serializers.ModelSerializer):
             raise exceptions.ValidationError(detail=e)
 
     class Meta:
+        list_serializer_class = BatchUpdateActivitiesSerializer
         model = Activities
         fields = [
             "id",

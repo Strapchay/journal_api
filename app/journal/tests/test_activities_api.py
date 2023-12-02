@@ -25,6 +25,11 @@ import json
 
 
 ACTIVITIES_URL = reverse("journal:activities-list")
+BATCH_UPDATE_ACTIVITIES_URL = reverse("journal:activities-batch_update_activities")
+BATCH_DELETE_ACTIVITIES_URL = reverse("journal:activities-batch_delete_activities")
+BATCH_DUPLICATE_ACTIVITIES_URL = reverse(
+    "journal:activities-batch_duplicate_activities"
+)
 CREATE_JOURNAL_TABLE_URL = reverse("journal:journaltables-list")
 TOKEN_URL = reverse("user:token")
 
@@ -548,3 +553,282 @@ class PrivateActivitiesApiTests(TestCase):
             intention3.id,
         ]
         self.assertEqual(expected_ordering_list, list(intentions_list))
+
+    def test_batch_update_activities_tags(self):
+        """
+        Test a batch update of multiple activities tags by
+        assigning multiple same tags to the activ"ties
+        """
+        journal_table = JournalTables.objects.create(
+            table_name="New Table", journal=self.journal
+        )
+
+        tag1 = Tags.objects.create(
+            tag_name="plvpdsf",
+            tag_user=self.user,
+            tag_color=Tags.Colors.RED,
+            tag_class=Tags.ColorsClasses.RED_CLASS,
+        )
+        tag2 = Tags.objects.create(
+            tag_name="p[ovad]",
+            tag_user=self.user,
+            tag_color=Tags.Colors.GRAY,
+            tag_class=Tags.ColorsClasses.GRAY_CLASS,
+        )
+
+        tag3 = Tags.objects.create(
+            tag_name="kdadff",
+            tag_user=self.user,
+            tag_color=Tags.Colors.GRAY,
+            tag_class=Tags.ColorsClasses.GRAY_CLASS,
+        )
+
+        activities1 = Activities.objects.create(
+            name="Kdf sfsdf",
+            journal_table=journal_table,
+        )
+        activities2 = Activities.objects.create(
+            name="Kdf okvs",
+            journal_table=journal_table,
+        )
+        activities3 = Activities.objects.create(
+            name="Kdf ovpsa",
+            journal_table=journal_table,
+        )
+
+        print("got to batch upd")
+        activities1.tags.add(self.tag1)
+        activities1.tags.add(self.tag2)
+        self.client.force_authenticate(self.user)
+
+        batch_update_payload = {
+            "activities_list": [
+                {
+                    "ids": [activities1.id, activities2.id, activities3.id],
+                    "tags": [tag1.id, tag2.id, tag3.id],
+                }
+            ]
+        }
+        res = self.client.patch(
+            BATCH_UPDATE_ACTIVITIES_URL, batch_update_payload, format="json"
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        for i in [activities1, activities2, activities3]:
+            self.assertEqual(list(i.tags.all()), [tag1, tag2, tag3])
+
+    def test_batch_delete_activities(self):
+        """
+        Test a batch delete of multiple activities
+        """
+        journal_table = JournalTables.objects.create(
+            table_name="New Table", journal=self.journal
+        )
+
+        activities1 = Activities.objects.create(
+            name="Kdf sfsdf",
+            journal_table=journal_table,
+        )
+        activities2 = Activities.objects.create(
+            name="Kdf okvs",
+            journal_table=journal_table,
+        )
+        activities3 = Activities.objects.create(
+            name="Kdf ovpsa",
+            journal_table=journal_table,
+        )
+
+        self.client.force_authenticate(self.user)
+
+        batch_delete_payload = {
+            "delete_list": [activities1.id, activities2.id, activities3.id],
+        }
+        res = self.client.delete(
+            BATCH_DELETE_ACTIVITIES_URL, batch_delete_payload, format="json"
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        activities_count = Activities.objects.filter(
+            journal_table=journal_table
+        ).count()
+        self.assertEqual(activities_count, 0)
+
+    def test_batch_duplicate_activities(self):
+        """
+        Test duplicating multiple activities is successful
+        """
+        journal_table = JournalTables.objects.create(
+            table_name="New Table", journal=self.journal
+        )
+
+        activities1 = Activities.objects.create(
+            name="Kdf sfsdf",
+            journal_table=journal_table,
+        )
+        activities2 = Activities.objects.create(
+            name="Kdf okvs",
+            journal_table=journal_table,
+        )
+        activities3 = Activities.objects.create(
+            name="Kdf ovpsa",
+            journal_table=journal_table,
+        )
+
+        self.client.force_authenticate(self.user)
+
+        batch_delete_payload = {
+            "delete_list": [activities1.id, activities2.id, activities3.id],
+        }
+        res = self.client.delete(
+            BATCH_DELETE_ACTIVITIES_URL, batch_delete_payload, format="json"
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        activities_count = Activities.objects.filter(
+            journal_table=journal_table
+        ).count()
+        self.assertEqual(activities_count, 0)
+
+    def test_batch_duplicate_activities(self):
+        """
+        Test a batch duplicate of multiple activities
+        """
+        journal_table = JournalTables.objects.create(
+            table_name="New Table", journal=self.journal
+        )
+
+        tag1 = Tags.objects.create(
+            tag_name="plvpdsf",
+            tag_user=self.user,
+            tag_color=Tags.Colors.RED,
+            tag_class=Tags.ColorsClasses.RED_CLASS,
+        )
+        tag2 = Tags.objects.create(
+            tag_name="p[ovad]",
+            tag_user=self.user,
+            tag_color=Tags.Colors.GRAY,
+            tag_class=Tags.ColorsClasses.GRAY_CLASS,
+        )
+
+        tag3 = Tags.objects.create(
+            tag_name="kdadff",
+            tag_user=self.user,
+            tag_color=Tags.Colors.GRAY,
+            tag_class=Tags.ColorsClasses.GRAY_CLASS,
+        )
+
+        activities1 = Activities.objects.create(
+            name="Kdf sfsdf",
+            journal_table=journal_table,
+        )
+        activities2 = Activities.objects.create(
+            name="Kdf okvs",
+            journal_table=journal_table,
+        )
+        activities3 = Activities.objects.create(
+            name="Kdf ovpsa",
+            journal_table=journal_table,
+        )
+
+        activities1.tags.add(tag1)
+        activities2.tags.add(tag1, tag2)
+        activities3.tags.add(tag1, tag2, tag3)
+
+        self.client.force_authenticate(self.user)
+
+        batch_duplicate_payload = {
+            "duplicate_list": [
+                {"ids": [activities1.id, activities2.id, activities3.id]}
+            ],
+        }
+        res = self.client.post(
+            BATCH_DUPLICATE_ACTIVITIES_URL, batch_duplicate_payload, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        activities = Activities.objects.filter(journal_table=journal_table)
+        activities_id_unique = activities.values_list("id", flat=True)
+        activities_count = activities.count()
+        activities_relate_count = Activities.objects.filter(
+            name=activities1.name
+        ).count()
+        self.assertEqual(list(set(activities_id_unique)), list(activities_id_unique))
+        self.assertEqual(activities_count, 6)
+        self.assertEqual(activities_relate_count, 2)
+
+    def test_batch_duplicate_activities_duplicates_tags(self):
+        """
+        Test a batch duplicate of multiple activities also duplicates its tags
+        """
+        journal_table = JournalTables.objects.create(
+            table_name="New Table", journal=self.journal
+        )
+
+        tag1 = Tags.objects.create(
+            tag_name="plvpdsf",
+            tag_user=self.user,
+            tag_color=Tags.Colors.RED,
+            tag_class=Tags.ColorsClasses.RED_CLASS,
+        )
+        tag2 = Tags.objects.create(
+            tag_name="p[ovad]",
+            tag_user=self.user,
+            tag_color=Tags.Colors.GRAY,
+            tag_class=Tags.ColorsClasses.GRAY_CLASS,
+        )
+
+        tag3 = Tags.objects.create(
+            tag_name="kdadff",
+            tag_user=self.user,
+            tag_color=Tags.Colors.GRAY,
+            tag_class=Tags.ColorsClasses.GRAY_CLASS,
+        )
+
+        activities1 = Activities.objects.create(
+            name="Kdf sfsdf",
+            journal_table=journal_table,
+        )
+        activities2 = Activities.objects.create(
+            name="Kdf okvs",
+            journal_table=journal_table,
+        )
+        activities3 = Activities.objects.create(
+            name="Kdf ovpsa",
+            journal_table=journal_table,
+        )
+
+        Intentions.objects.create(activity=activities1, intention="dklvjosadadf")
+        GratefulFor.objects.create(activity=activities2, grateful_for="kdvoasdfdf")
+        Happenings.objects.create(activity=activities3, happening="vodfsfjoasdfad")
+        activities1.tags.add(tag1)
+        activities2.tags.add(tag1, tag2)
+        activities3.tags.add(tag1, tag2, tag3)
+
+        self.client.force_authenticate(self.user)
+
+        batch_duplicate_payload = {
+            "duplicate_list": [
+                {"ids": [activities1.id, activities2.id, activities3.id]}
+            ],
+        }
+        res = self.client.post(
+            BATCH_DUPLICATE_ACTIVITIES_URL, batch_duplicate_payload, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        activities = Activities.objects.filter(journal_table=journal_table)
+        activities_id_unique = activities.values_list("id", flat=True)
+        activities_count = activities.count()
+        activities_relate_count = Activities.objects.filter(
+            name=activities1.name
+        ).count()
+        activities_serializer = ActivitiesSerializer(activities, many=True)
+        print("res data", res.data)
+        print("all acts seeriali", activities_serializer.data)
+        self.assertEqual(list(set(activities_id_unique)), list(activities_id_unique))
+        self.assertEqual(activities_count, 6)
+        self.assertEqual(activities_relate_count, 2)
+        other_activity = Activities.objects.filter(name=activities3.name)
+        other_activity_1 = other_activity.first()
+        other_activity_2 = other_activity.last()
+        self.assertEqual(
+            other_activity_1.tags.all().count(), other_activity_2.tags.all().count()
+        )

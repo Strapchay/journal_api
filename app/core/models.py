@@ -9,6 +9,7 @@ from django.db.models.constraints import UniqueConstraint
 from django.db.models import Q, Max
 import random
 import string
+from model_clone import CloneMixin
 
 
 # Create your models here.
@@ -99,6 +100,7 @@ class JournalTables(models.Model):
         return self.table_name
 
 
+# CloneMixin,
 class Activities(models.Model):
     name = models.CharField(max_length=3000, null=True, blank=True)
     created = models.DateTimeField(auto_now=True)
@@ -126,11 +128,23 @@ class Activities(models.Model):
             # self.save()
 
     def save(self, *args, **kwargs):
-        self.increment_ordering
+        if self.ordering is None:
+            self.increment_ordering
         super(Activities, self).save(*args, **kwargs)
 
     def __str__(self) -> str:
         return self.name
+
+    # _clone_m2m_fields = ["tags"]
+    # _clone_m2o_or_o2m_fields = [
+    #     "intentions",
+    #     "happenings",
+    #     "action_items",
+    #     "grateful_for",
+    # ]
+
+    class Meta:
+        ordering = ["id"]
 
 
 class Tags(models.Model):

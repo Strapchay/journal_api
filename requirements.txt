@@ -5,3 +5,4 @@ drf-spectacular>=0.26.0,<0.26.5
 uwsgi==2.0.22
 django-cors-headers==4.3.0
 dj-rest-auth==5.0.1
+django-clone
