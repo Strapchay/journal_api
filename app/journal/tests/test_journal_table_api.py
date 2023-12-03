@@ -120,6 +120,27 @@ class PrivateJournalTableApiTests(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
+    def test_create_journal_table_as_duplicate_succeeds(self):
+        """
+        Test create journal table by duplicating a journal table succeeds for
+        authenticated user
+        """
+        journal_table = JournalTables.objects.create(
+            journal=self.journal, table_name="Table"
+        )
+
+        payload = {
+            "journal": self.journal.id,
+            "journal_table": journal_table.id,
+            "duplicate": True,
+            "table_name": "",
+        }
+        res = self.client.post(CREATE_JOURNAL_TABLE_URL, payload, format="json")
+        print("res data dup table", res.data)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["table_name"], f"{journal_table.table_name} (1)")
+
     def test_retrieving_journal_table_activities_with_sub_fields_are_returned_in_response(
         self,
     ):

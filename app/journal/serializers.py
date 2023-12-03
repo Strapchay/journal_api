@@ -16,6 +16,7 @@ from core.models import (
 from journal.mixins import (
     BatchUpdateActivitiesSerializerMixin,
     BatchDuplicateActivitiesSerializerMixin,
+    CloneModelMixin,
 )
 
 from django.db.models import Q
@@ -62,6 +63,7 @@ class BatchUpdateActivitiesSerializer(
 
 
 class BatchDuplicateActivitiesSerializer(
+    CloneModelMixin,
     BatchDuplicateActivitiesSerializerMixin,
     serializers.ListSerializer,
 ):
@@ -69,51 +71,51 @@ class BatchDuplicateActivitiesSerializer(
     Serializer for Activities for duplicating batch activities
     """
 
-    def duplicate_model(self, instance, callback=None):
-        related_objects_to_copy = []
-        relations_to_set = {}
-
-        for field in instance._meta.get_fields():
-            if field.name == "id":
-                pass
-            elif field.one_to_many:
-                related_object_manager = getattr(instance, field.get_accessor_name())
-                related_objects = list(related_object_manager.all())
-
-                if related_objects:
-                    related_objects_to_copy += related_objects
-
-            elif field.many_to_many and hasattr(field, "field"):  # not
-                related_object_manager = getattr(instance, field.name)
-
-                relations = list(related_object_manager.all())
-                if relations:
-                    relations_to_set[field.name] = relations
-            else:
-                pass
-
-        instance.pk = None
-
-        if callback and callable(callback):
-            instance = callback(instance)
-
-        instance.save()
-
-        for related_object in related_objects_to_copy:
-            for related_object_field in related_object._meta.fields:
-                if related_object_field.related_model == instance.__class__:
-                    setattr(related_object, related_object_field.name, instance)
-                    new_related_object = self.duplicate_model(related_object)
-                    new_related_object.save()
-
-        for field_name, relations in relations_to_set.items():
-            field = getattr(instance, field_name)
-            field.set(relations)
-            text_relations = []
-            for relation in relations:
-                text_relations.append(str(relation))
-        return instance
-
+    # def duplicate_model(self, instance, callback=None):
+    # related_objects_to_copy = []
+    # relations_to_set = {}
+    #
+    # for field in instance._meta.get_fields():
+    # if field.name == "id":
+    # pass
+    # elif field.one_to_many:
+    # related_object_manager = getattr(instance, field.get_accessor_name())
+    # related_objects = list(related_object_manager.all())
+    #
+    # if related_objects:
+    # related_objects_to_copy += related_objects
+    #
+    # elif field.many_to_many and hasattr(field, "field"):  # not
+    # related_object_manager = getattr(instance, field.name)
+    #
+    # relations = list(related_object_manager.all())
+    # if relations:
+    # relations_to_set[field.name] = relations
+    # else:
+    # pass
+    #
+    # instance.pk = None
+    #
+    # if callback and callable(callback):
+    # instance = callback(instance)
+    #
+    # instance.save()
+    #
+    # for related_object in related_objects_to_copy:
+    # for related_object_field in related_object._meta.fields:
+    # if related_object_field.related_model == instance.__class__:
+    # setattr(related_object, related_object_field.name, instance)
+    # new_related_object = self.duplicate_model(related_object)
+    # new_related_object.save()
+    #
+    # for field_name, relations in relations_to_set.items():
+    # field = getattr(instance, field_name)
+    # field.set(relations)
+    # text_relations = []
+    # for relation in relations:
+    # text_relations.append(str(relation))
+    # return instance
+    #
     def create(self, validated_data):
         """
         Create Duplicated Activities Items
@@ -554,28 +556,43 @@ class ActivitiesSerializer(ListSerializerClassInitMixin, serializers.ModelSerial
         except Exception as e:
             print("except trig", e)
 
-    def update_submodel_ordering(self, model_type, ordering_payload):
-        submodel_type = model_type.get("type", None)
-        submodel_ids = list(map(lambda x: x["id"], ordering_payload))
-        submodel_orderings = list(map(lambda x: x["ordering"], ordering_payload))
-
-        submodel_model = self.get_submodel(submodel_type)
-        submodel_instances = submodel_model.objects.filter(id__in=submodel_ids)
-        print("submod insts", submodel_instances)
-        submodels_update_list = []
-        for i, submodel in enumerate(submodel_instances):
-            submodel.ordering = submodel_orderings[i]
-            submodels_update_list.append(submodel)
+    def update_model_ordering(self, ordering_payload, model):
+        instance_ids = list(map(lambda x: x["id"], ordering_payload))
+        instance_orderings = list(map(lambda x: x["ordering"], ordering_payload))
+        instances = model.objects.filter(id__in=instance_ids)
+        print("submod insts", instances)
+        instances_update_list = []
+        for i, instance in enumerate(instances):
+            instance.ordering = instance_orderings[i]
+            instances_update_list.append(instance)
         try:
-            submodel_model.objects.bulk_update(submodels_update_list, ["ordering"])
-            return submodels_update_list
+            model.objects.bulk_update(instances_update_list, ["ordering"])
+            return instances_update_list
         except IntegrityError as e:
             raise serializers.ValidationError(detail=e)
+
+    # def update_submodel_ordering(self, model_type, ordering_payload):
+    #     submodel_type = model_type.get("type", None)
+    #     submodel_ids = list(map(lambda x: x["id"], ordering_payload))
+    #     submodel_orderings = list(map(lambda x: x["ordering"], ordering_payload))
+
+    #     submodel_model = self.get_submodel(submodel_type)
+    #     submodel_instances = submodel_model.objects.filter(id__in=submodel_ids)
+    #     print("submod insts", submodel_instances)
+    #     submodels_update_list = []
+    #     for i, submodel in enumerate(submodel_instances):
+    #         submodel.ordering = submodel_orderings[i]
+    #         submodels_update_list.append(submodel)
+    #     try:
+    #         submodel_model.objects.bulk_update(submodels_update_list, ["ordering"])
+    #         return submodels_update_list
+    #     except IntegrityError as e:
+    #         raise serializers.ValidationError(detail=e)
 
     def create(self, validated_data):
         try:
             tags = validated_data.pop("tags", [])
-
+            activities_ordering_list = validated_data.pop("ordering_list", None)
             journal_table_data = validated_data.pop("journal_table", None)
             journal_table = (
                 JournalTables.objects.get(id=journal_table_data)
@@ -584,15 +601,27 @@ class ActivitiesSerializer(ListSerializerClassInitMixin, serializers.ModelSerial
             )
             print("journal table", journal_table)
             print("val data", validated_data)
-            activity = Activities.objects.create(
-                name=validated_data["name"], journal_table=journal_table
-            )
+            create_payload = {
+                "name": validated_data["name"],
+                "journal_table": journal_table,
+            }
+            if activities_ordering_list is not None:
+                # add the create item ordering if its a relative item being added
+                create_payload["ordering"] = activities_ordering_list[
+                    "create_item_ordering"
+                ]
+
+            activity = Activities.objects.create(**create_payload)
             print("the activity", activity)
 
             if len(tags) > 0:
                 for tagId in tags:
                     tag = Tags.objects.get(id=int(tagId))
                     activity.tags.add(tag)
+
+            if activities_ordering_list is not None:
+                ordering_list = activities_ordering_list["table_items_ordering"]
+                self.update_model_ordering(ordering_list, self.Meta.model)
 
             self.create_default_submodels(activity)
 
@@ -655,7 +684,10 @@ class ActivitiesSerializer(ListSerializerClassInitMixin, serializers.ModelSerial
                         ordering_submodel_payload is not None
                         and len(ordering_submodel_payload) > 0
                     ):
-                        self.update_submodel_ordering(value, ordering_submodel_payload)
+                        self.update_model_ordering(
+                            ordering_submodel_payload,
+                            self.get_submodel(value.get("type", None)),
+                        )
 
             # TODO: add relativeItem/prop for ordering
             if submodels_validated_data.get("action_items", None) is not None:
@@ -714,27 +746,82 @@ class JournalTableActivitiesSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class JournalTableSerializer(serializers.ModelSerializer):
+class JournalTableSerializer(CloneModelMixin, serializers.ModelSerializer):
     """
     Serializer for Journal Table
     """
 
     activities = JournalTableActivitiesSerializer(many=True, required=False)
 
+    def to_internal_value(self, data):
+        try:
+            if not isinstance(data, dict):
+                raise exceptions.ValidationError(
+                    "A list is expected for the tags field"
+                )
+            duplicate = data.get("duplicate", None)
+            journal_table = data.get("journal_table", None)
+            print("journal table internal data", data)
+
+            ret = super().to_internal_value(data)
+            ret["duplicate"] = duplicate
+            ret["journal_table"] = journal_table
+            print("journal table internal data ret", ret)
+            return ret
+        except Exception as e:
+            print("the inter val eexceep jourtab ", e)
+
     class Meta:
         model = JournalTables
         #  "journal",
         fields = ["id", "table_name", "activities"]
+        optional_fields = [
+            "table_name",
+        ]
         read_only_fields = ["id", "activities"]
+
+    def create_clone_table_name(self, table_name, name_count):
+        return f"{table_name} ({name_count})"
 
     def create(self, validated_data):
         """
         Create a Journal Table
         """
+        print("validated data", validated_data)
         journal = validated_data.pop("journal", None)
-        journal_table = JournalTables.objects.create(
-            table_name=validated_data["table_name"], journal=journal
+        duplicate_table = validated_data.pop("duplicate", None)
+
+        journal = (
+            Journal.objects.get(id=journal) if isinstance(journal, int) else journal
         )
+        print("journal journal", journal)
+
+        if duplicate_table is None:
+            journal_table = JournalTables.objects.create(
+                table_name=validated_data["table_name"], journal=journal
+            )
+
+        if duplicate_table is not None:
+            journal_table_to_duplicate_id = validated_data.pop("journal_table", None)
+
+            if journal_table_to_duplicate_id is not None:
+                journal_table_to_duplicate = JournalTables.objects.get(
+                    id=journal_table_to_duplicate_id
+                )
+
+                journal_table_with_similar_name_count = JournalTables.objects.filter(
+                    table_name__startswith=journal_table_to_duplicate.table_name
+                ).count()
+                clone_table_name = self.create_clone_table_name(
+                    journal_table_to_duplicate.table_name,
+                    journal_table_with_similar_name_count,
+                )
+
+                clone_table = self.duplicate_model(journal_table_to_duplicate)
+                clone_table.table_name = clone_table_name
+                clone_table.save()
+
+                return clone_table
 
         return journal_table
 

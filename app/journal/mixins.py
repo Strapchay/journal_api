@@ -189,3 +189,50 @@ class BatchDuplicateActivitiesRouteMixin:
 
     # except Exception as e:
     #     raise ValidationError(e)
+
+
+class CloneModelMixin:
+    def duplicate_model(self, instance, callback=None):
+        related_objects_to_copy = []
+        relations_to_set = {}
+
+        for field in instance._meta.get_fields():
+            if field.name == "id":
+                pass
+            elif field.one_to_many:
+                related_object_manager = getattr(instance, field.get_accessor_name())
+                related_objects = list(related_object_manager.all())
+
+                if related_objects:
+                    related_objects_to_copy += related_objects
+
+            elif field.many_to_many and hasattr(field, "field"):  # not
+                related_object_manager = getattr(instance, field.name)
+
+                relations = list(related_object_manager.all())
+                if relations:
+                    relations_to_set[field.name] = relations
+            else:
+                pass
+
+        instance.pk = None
+
+        if callback and callable(callback):
+            instance = callback(instance)
+
+        instance.save()
+
+        for related_object in related_objects_to_copy:
+            for related_object_field in related_object._meta.fields:
+                if related_object_field.related_model == instance.__class__:
+                    setattr(related_object, related_object_field.name, instance)
+                    new_related_object = self.duplicate_model(related_object)
+                    new_related_object.save()
+
+        for field_name, relations in relations_to_set.items():
+            field = getattr(instance, field_name)
+            field.set(relations)
+            text_relations = []
+            for relation in relations:
+                text_relations.append(str(relation))
+        return instance

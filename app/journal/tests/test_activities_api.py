@@ -22,7 +22,7 @@ from core.models import (
 from journal.serializers import ActivitiesSerializer
 from django.db.models import Q
 import json
-
+from collections import Counter
 
 ACTIVITIES_URL = reverse("journal:activities-list")
 BATCH_UPDATE_ACTIVITIES_URL = reverse("journal:activities-batch_update_activities")
@@ -193,7 +193,6 @@ class PrivateActivitiesApiTests(TestCase):
         }
 
         res = self.client.post(ACTIVITIES_URL, payload)
-        print("default models activ", res.data)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
         activity = Activities.objects.filter(journal_table=journal_table).first()
@@ -223,7 +222,6 @@ class PrivateActivitiesApiTests(TestCase):
         }
 
         res = self.client.post(ACTIVITIES_URL, payload)
-        print("default models activ", res.data)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
         activity = Activities.objects.filter(journal_table=journal_table).first()
@@ -236,10 +234,57 @@ class PrivateActivitiesApiTests(TestCase):
         activity_res = self.client.get(activity_url)
         self.assertEqual(activity_res.status_code, status.HTTP_200_OK)
         activities_intentions = activity_res.data["intentions"]
-        print("the actvi int", activities_intentions)
         ordering_list = [1, 2]
         for i in activities_intentions:
             self.assertIn(i["ordering"], ordering_list)
+
+    def test_create_activities_relative_item_updates_other_activities_ordering(self):
+        """
+        Test creating an activity relative to another activity increments and reorders the activities
+        """
+
+        journal_table = JournalTables.objects.create(
+            table_name="New Table", journal=self.journal
+        )
+
+        activities1 = Activities.objects.create(
+            name="Kdf sfsdf",
+            journal_table=journal_table,
+        )
+        activities2 = Activities.objects.create(
+            name="Kdf okvs",
+            journal_table=journal_table,
+        )
+        activities3 = Activities.objects.create(
+            name="Kdf ovpsa",
+            journal_table=journal_table,
+        )
+
+        create_relative_activities_payload = {
+            "name": "",
+            "journal_table": journal_table.id,
+            "ordering_list": {
+                "create_item_ordering": 2,
+                "table_items_ordering": [
+                    {"id": activities1.id, "ordering": 1},
+                    {"id": activities2.id, "ordering": 3},
+                    {"id": activities3.id, "ordering": 4},
+                ],
+            },
+        }
+
+        self.client.force_authenticate(self.user)
+
+        res = self.client.post(
+            ACTIVITIES_URL, create_relative_activities_payload, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        activities = Activities.objects.filter(journal_table=journal_table)
+        activity1 = activities.first()
+        self.assertEqual(activity1.ordering, 1)
+        self.assertEqual(activities.count(), 4)
+        self.assertEqual(res.data["ordering"], 2)
 
     def test_remove_activites_for_other_user_by_current_user_fails(self):
         """
@@ -534,8 +579,6 @@ class PrivateActivitiesApiTests(TestCase):
         res = self.client.patch(activities_url, submodel_payload, format="json")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         activities_intentions = json.loads(json.dumps(res.data["intentions"]))
-        print("update ordering res", res.data)
-        print(activities_intentions)
         created_intention_id = None
         for i in activities_intentions:
             if i["intention"] == submodel_payload["intentions"]["create"]["intention"]:
@@ -596,7 +639,6 @@ class PrivateActivitiesApiTests(TestCase):
             journal_table=journal_table,
         )
 
-        print("got to batch upd")
         activities1.tags.add(self.tag1)
         activities1.tags.add(self.tag2)
         self.client.force_authenticate(self.user)
@@ -751,7 +793,10 @@ class PrivateActivitiesApiTests(TestCase):
         activities_relate_count = Activities.objects.filter(
             name=activities1.name
         ).count()
-        self.assertEqual(list(set(activities_id_unique)), list(activities_id_unique))
+        unique_items = Counter(activities_id_unique)
+        for i in unique_items:
+            self.assertEqual(unique_items[i], 1)
+        self.assertEqual(list(activities_id_unique), list(unique_items.keys()))
         self.assertEqual(activities_count, 6)
         self.assertEqual(activities_relate_count, 2)
 
@@ -821,9 +866,12 @@ class PrivateActivitiesApiTests(TestCase):
             name=activities1.name
         ).count()
         activities_serializer = ActivitiesSerializer(activities, many=True)
-        print("res data", res.data)
-        print("all acts seeriali", activities_serializer.data)
-        self.assertEqual(list(set(activities_id_unique)), list(activities_id_unique))
+        unique_items = Counter(activities_id_unique)
+        for i in unique_items:
+            self.assertEqual(unique_items[i], 1)
+        self.assertEqual(list(activities_id_unique), list(unique_items.keys()))
+
+        # self.assertEqual(list(set(activities_id_unique)), list(activities_id_unique))
         self.assertEqual(activities_count, 6)
         self.assertEqual(activities_relate_count, 2)
         other_activity = Activities.objects.filter(name=activities3.name)

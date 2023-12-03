@@ -9,7 +9,6 @@ from django.db.models.constraints import UniqueConstraint
 from django.db.models import Q, Max
 import random
 import string
-from model_clone import CloneMixin
 
 
 # Create your models here.
@@ -90,17 +89,25 @@ class Journal(models.Model):
         return self.journal_name
 
 
+def create_default_table_name():
+    journal_tables = JournalTables.object.filter(table_name__startswith="Table").count()
+    if journal_tables == 0:
+        return "Table"
+    return f"Table ({journal_tables})"
+
+
 class JournalTables(models.Model):
     journal = models.ForeignKey(
         Journal, on_delete=models.CASCADE, related_name="journal_tables"
     )
-    table_name = models.CharField(max_length=100)
+    table_name = models.CharField(
+        default=create_default_table_name, null=True, blank=True, max_length=100
+    )
 
     def __str__(self) -> str:
         return self.table_name
 
 
-# CloneMixin,
 class Activities(models.Model):
     name = models.CharField(max_length=3000, null=True, blank=True)
     created = models.DateTimeField(auto_now=True)
@@ -135,16 +142,8 @@ class Activities(models.Model):
     def __str__(self) -> str:
         return self.name
 
-    # _clone_m2m_fields = ["tags"]
-    # _clone_m2o_or_o2m_fields = [
-    #     "intentions",
-    #     "happenings",
-    #     "action_items",
-    #     "grateful_for",
-    # ]
-
     class Meta:
-        ordering = ["id"]
+        ordering = ["ordering"]
 
 
 class Tags(models.Model):
