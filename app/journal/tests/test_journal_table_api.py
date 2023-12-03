@@ -141,6 +141,22 @@ class PrivateJournalTableApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(res.data["table_name"], f"{journal_table.table_name} (1)")
 
+    def test_create_journal_table_without_table_name_creates_default_table_name(self):
+        """
+        Test create journal table without table_name creates default table with table name
+        """
+        journal_table = JournalTables.objects.create(journal=self.journal)
+
+        payload = {
+            "journal": self.journal.id,
+        }
+        res = self.client.post(CREATE_JOURNAL_TABLE_URL, payload, format="json")
+        print("res data create default table", res.data)
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(journal_table.table_name, "Table")
+        self.assertEqual(res.data["table_name"], f"Table (1)")
+
     def test_retrieving_journal_table_activities_with_sub_fields_are_returned_in_response(
         self,
     ):

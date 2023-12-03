@@ -90,10 +90,17 @@ class Journal(models.Model):
 
 
 def create_default_table_name():
-    journal_tables = JournalTables.object.filter(table_name__startswith="Table").count()
-    if journal_tables == 0:
+    journal_tables = JournalTables.objects.filter(
+        table_name__startswith="Table"
+    ).values_list("table_name", flat=True)
+
+    if len(journal_tables) == 0:
         return "Table"
-    return f"Table ({journal_tables})"
+    table_name = f"Table ({len(journal_tables)})"
+    if table_name in journal_tables:
+        return f"Table ({len(journal_tables) + 1})"
+    else:
+        return table_name
 
 
 class JournalTables(models.Model):
@@ -106,6 +113,9 @@ class JournalTables(models.Model):
 
     def __str__(self) -> str:
         return self.table_name
+
+    class Meta:
+        ordering = ["id"]
 
 
 class Activities(models.Model):

@@ -797,9 +797,11 @@ class JournalTableSerializer(CloneModelMixin, serializers.ModelSerializer):
         print("journal journal", journal)
 
         if duplicate_table is None:
-            journal_table = JournalTables.objects.create(
-                table_name=validated_data["table_name"], journal=journal
-            )
+            journal_table_payload = {"journal": journal}
+            journal_table_name = validated_data.get("table_name", None)
+            if journal_table_name is not None:
+                journal_table_payload["table_name"] = journal_table_name
+            journal_table = JournalTables.objects.create(**journal_table_payload)
 
         if duplicate_table is not None:
             journal_table_to_duplicate_id = validated_data.pop("journal_table", None)
