@@ -84,6 +84,7 @@ class Journal(models.Model):
     )
     journal_description = models.CharField(max_length=3000, blank=True, null=True)
     current_table = models.IntegerField(null=True, blank=True)
+    journal_table_func = models.JSONField(default=dict, null=False, blank=True)
 
     def __str__(self) -> str:
         return self.journal_name

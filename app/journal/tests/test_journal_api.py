@@ -246,6 +246,37 @@ class PrivateJournalApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["current_table"], journal_table_last)
 
+    def test_journal_partial_update_of_current_table_table_func(self):
+        """
+        Test that updating a journals current_table table_func json is saved and queriable
+        """
+
+        journal = Journal.objects.create(**self.payload)
+
+        table_func_data = {
+            "journal_table_func": {
+                "15": {
+                    "filter": {
+                        "tableId": 15,
+                        "type": "itemTitle",
+                        "conditional": "ends with",
+                        "value": "ff",
+                        "property": "name",
+                    },
+                    "sort": {},
+                }
+            }
+        }
+        journal_url = detail_url(journal.id)
+        res = self.client.patch(journal_url, table_func_data, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        print("table func data", res.data)
+
+        self.assertEqual(
+            res.data["journal_table_func"], table_func_data["journal_table_func"]
+        )
+
     def test_journal_partial_update_of_current_table_cannot_set_default_if_none_exists(
         self,
     ):
