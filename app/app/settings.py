@@ -20,12 +20,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-^az%$dj!oq9rjb=vfm@yn!+fqd%j&b5-944y=__k($5w$w!6*4"
+SECRET_KEY = os.environ.get("SECRET_KEY", "changeme")
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = bool(int(os.environ.get("DEBUG", 0)))
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = []
+
+DEV_MODE = os.environ.get("DEV")
+
+if DEV_MODE:
+    ALLOWED_HOSTS.append("*")
+else:
+    ALLOWED_HOSTS.extend(
+        filter(
+            None,
+            os.environ.get("ALLOWED_HOSTS", "").split(","),
+        )
+    )
 
 
 # Application definition
@@ -81,15 +94,31 @@ TEMPLATES = [
 WSGI_APPLICATION = "app.wsgi.application"
 
 # ####################
-CORS_ALLOW_CREDENTIALS = True
+CORS_ORIGIN_WHITELIST = [os.environ.get("CORS_CSRF_URL_1", "https://example.com")]
+CORS_ORIGIN_WHITELIST.extend(
+    filter(
+        None,
+        os.environ.get("ALLOWED_HOSTS", "").split(","),
+    )
+)
 
-CORS_ORIGIN_WHITELIST = ["http://localhost:1234"]
+CSRF_TRUSTED_ORIGINS = [os.environ.get("CORS_CSRF_URL_1", "https://example.com")]
+CSRF_TRUSTED_ORIGINS.extend(
+    filter(
+        None,
+        os.environ.get("ALLOWED_HOSTS", "").split(","),
+    )
+)
 
-CSRF_TRUSTED_ORIGINS = ["http://localhost:1234"]
-CSRF_ALLOWED_ORIGINS = ["http://localhost:1234"]
+CSRF_ALLOWED_ORIGINS = [os.environ.get("CORS_CSRF_URL_1", "https://example.com")]
+CSRF_ALLOWED_ORIGINS.extend(
+    filter(
+        None,
+        os.environ.get("ALLOWED_HOSTS", "").split(","),
+    )
+)
 
 CORS_ALLOW_HEADERS = ["X-Custom-Header", "Authorization", "Content-Type"]
-
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -140,13 +169,14 @@ USE_TZ = True
 ###########
 # EMAIL CREDS
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 465
-EMAIL_HOST_USER = "journalactivities@gmail.com"
-EMAIL_HOST_PASSWORD = "bwwh olao djtx brfy"
-EMAIL_USE_TLS = False
-EMAIL_USE_SSL = True
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "testuser@example.com")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 547))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "testuser@example.com")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "Testuser123")
+EMAIL_USE_TLS = bool(int(os.environ.get("EMAIL_USE_TLS", 1)))
+EMAIL_USE_SSL = bool(int(os.environ.get("EMAIL_USE_SSL", 0)))
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
