@@ -13,6 +13,7 @@ from core.models import Journal, Tags
 from django.db.models import Q
 
 TAGS_URL = reverse("journal:tags-list")
+BATCH_TAG_URL = reverse("journal:tags-batch_tag_processor")
 # CREATE_J_URL = reverse("journal:journaltables-list")
 TOKEN_URL = reverse("user:token")
 
@@ -98,6 +99,67 @@ class PrivateTagsApiTest(TestCase):
 
         res = self.client.post(TAGS_URL, payload)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+    def test_create_batch_tags_is_successful(self):
+        """
+        Test creating batch tags for an authenticated user is successful
+        """
+        payload = {
+            "tags_list": [
+                {
+                    "tag_name": "Daily",
+                    "tag_color": Tags.Colors.RED,
+                    "tag_class": Tags.ColorsClasses.RED_CLASS,
+                },
+                {
+                    "tag_name": "Kdoifaf",
+                    "tag_color": Tags.Colors.GRAY,
+                    "tag_class": Tags.ColorsClasses.GRAY_CLASS,
+                },
+                {
+                    "tag_name": "Kiovodaf",
+                    "tag_color": Tags.Colors.BLUE,
+                    "tag_class": Tags.ColorsClasses.BLUE_CLASS,
+                },
+            ]
+        }
+
+        res = self.client.post(BATCH_TAG_URL, payload, format="json")
+        print("btach tag createe", res.data)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        tags_count = Tags.objects.filter(tag_user=self.user.id).count()
+        self.assertEqual(tags_count, 3)
+
+    def test_create_batch_tags_with_a_invalid_data_is_successful(self):
+        """
+        Test creating batch tags with one of its value being invalid still result in a success
+        """
+
+        payload = {
+            "tags_list": [
+                {
+                    "tag_name": "Daily",
+                    "tag_color": Tags.Colors.RED,
+                    "tag_class": Tags.ColorsClasses.RED_CLASS,
+                },
+                {
+                    "tag_name": None,
+                    "tag_color": None,
+                    "tag_class": Tags.ColorsClasses.GRAY_CLASS,
+                },
+                {
+                    "tag_name": "Kiovodaf",
+                    "tag_color": Tags.Colors.BLUE,
+                    "tag_class": Tags.ColorsClasses.BLUE_CLASS,
+                },
+            ]
+        }
+
+        res = self.client.post(BATCH_TAG_URL, payload, format="json")
+        print("btach tag createe inval data", res.data)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        tags_count = Tags.objects.filter(tag_user=self.user.id).count()
+        self.assertEqual(tags_count, 2)
 
     def test_create_tag_for_authenticated_user_with_tag_color_not_in_choices_fails(
         self,
@@ -214,3 +276,141 @@ class PrivateTagsApiTest(TestCase):
         res = self.client.post(TAGS_URL, payload)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertTrue(res.data["tag_name"], "Daily")
+
+    def test_updating_batch_tags_is_successful(self):
+        """
+        Test updating batch tags with one of its value being invalid still result in a success
+        """
+        tag1_payload = {
+            "tag_user": self.user,
+            "tag_name": "Daily",
+            "tag_color": Tags.Colors.RED,
+            "tag_class": Tags.ColorsClasses.RED_CLASS,
+        }
+
+        tag2_payload = {
+            "tag_user": self.user,
+            "tag_name": "adsadsf",
+            "tag_color": Tags.Colors.GRAY,
+            "tag_class": Tags.ColorsClasses.GRAY_CLASS,
+        }
+
+        tag3_payload = {
+            "tag_user": self.user,
+            "tag_name": "Kiovodaf",
+            "tag_color": Tags.Colors.BLUE,
+            "tag_class": Tags.ColorsClasses.BLUE_CLASS,
+        }
+
+        tag1 = Tags.objects.create(**tag1_payload)
+        tag2 = Tags.objects.create(**tag2_payload)
+        tag3 = Tags.objects.create(**tag3_payload)
+
+        payload = {
+            "tags_list": [
+                {
+                    "id": tag1.id,
+                    "tag_name": "Dai",
+                    "tag_color": Tags.Colors.BLUE,
+                    "tag_class": Tags.ColorsClasses.BLUE_CLASS,
+                },
+                {
+                    "id": tag2.id,
+                    "tag_name": "Updated Name",
+                    "tag_color": Tags.Colors.RED,
+                    "tag_class": Tags.ColorsClasses.RED_CLASS,
+                },
+                {
+                    "id": tag3.id,
+                    "tag_name": "Kiovodaf",
+                    "tag_color": Tags.Colors.YELLOW,
+                    "tag_class": Tags.ColorsClasses.YELLOW_CLASS,
+                },
+            ]
+        }
+
+        res = self.client.patch(BATCH_TAG_URL, payload, format="json")
+        print("btach tag createe inval data", res.data)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        tag1.refresh_from_db()
+        tag2.refresh_from_db()
+        self.assertEqual(tag1.tag_name, payload["tags_list"][0]["tag_name"])
+        self.assertEqual(tag2.tag_color, payload["tags_list"][1]["tag_color"])
+
+    def test_deleting_batch_tags_is_successful(self):
+        """
+        Test deleting batch tags is successful
+        """
+        tag1_payload = {
+            "tag_user": self.user,
+            "tag_name": "Daily",
+            "tag_color": Tags.Colors.RED,
+            "tag_class": Tags.ColorsClasses.RED_CLASS,
+        }
+
+        tag2_payload = {
+            "tag_user": self.user,
+            "tag_name": "adsadsf",
+            "tag_color": Tags.Colors.GRAY,
+            "tag_class": Tags.ColorsClasses.GRAY_CLASS,
+        }
+
+        tag3_payload = {
+            "tag_user": self.user,
+            "tag_name": "Kiovodaf",
+            "tag_color": Tags.Colors.BLUE,
+            "tag_class": Tags.ColorsClasses.BLUE_CLASS,
+        }
+
+        tag1 = Tags.objects.create(**tag1_payload)
+        tag2 = Tags.objects.create(**tag2_payload)
+        tag3 = Tags.objects.create(**tag3_payload)
+
+        payload = {"tags_list": [tag3.id, tag1.id]}
+
+        res = self.client.delete(BATCH_TAG_URL, payload, format="json")
+        print("btach tag createe inval data", res.data)
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+
+        tags_count = Tags.objects.filter(tag_user=self.user).count()
+
+        self.assertEqual(tags_count, 1)
+
+    def test_deleting_batch_tags_with_invalid_id_is_successful(self):
+        """
+        Test deleting batch tags with one of its tag id non-existent is successful and doesn't invalidate the request
+        """
+        tag1_payload = {
+            "tag_user": self.user,
+            "tag_name": "Daily",
+            "tag_color": Tags.Colors.RED,
+            "tag_class": Tags.ColorsClasses.RED_CLASS,
+        }
+
+        tag2_payload = {
+            "tag_user": self.user,
+            "tag_name": "adsadsf",
+            "tag_color": Tags.Colors.GRAY,
+            "tag_class": Tags.ColorsClasses.GRAY_CLASS,
+        }
+
+        tag3_payload = {
+            "tag_user": self.user,
+            "tag_name": "Kiovodaf",
+            "tag_color": Tags.Colors.BLUE,
+            "tag_class": Tags.ColorsClasses.BLUE_CLASS,
+        }
+
+        tag1 = Tags.objects.create(**tag1_payload)
+        tag2 = Tags.objects.create(**tag2_payload)
+        tag3 = Tags.objects.create(**tag3_payload)
+
+        payload = {"tags_list": [tag3.id, tag1.id, 84398434]}
+
+        res = self.client.delete(BATCH_TAG_URL, payload, format="json")
+        print("btach tag createe inval data", res.data)
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+
+        tags_count = Tags.objects.filter(tag_user=self.user).count()
+
+        self.assertEqual(tags_count, 1)

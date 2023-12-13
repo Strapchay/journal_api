@@ -654,6 +654,7 @@ class PrivateActivitiesApiTests(TestCase):
         res = self.client.patch(
             BATCH_UPDATE_ACTIVITIES_URL, batch_update_payload, format="json"
         )
+        print("activities batch tag", res.data)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         for i in [activities1, activities2, activities3]:
@@ -789,14 +790,19 @@ class PrivateActivitiesApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         activities = Activities.objects.filter(journal_table=journal_table)
         activities_id_unique = activities.values_list("id", flat=True)
+        activities_ordering_unique = activities.values_list("ordering", flat=True)
+
+        self.assertEqual(len(activities_id_unique), len(set(activities_id_unique)))
+        print("the ordering unique", activities_ordering_unique)
+        self.assertEqual(
+            len(activities_ordering_unique), len(set(activities_ordering_unique))
+        )
+
         activities_count = activities.count()
         activities_relate_count = Activities.objects.filter(
             name=activities1.name
         ).count()
-        unique_items = Counter(activities_id_unique)
-        for i in unique_items:
-            self.assertEqual(unique_items[i], 1)
-        self.assertEqual(list(activities_id_unique), list(unique_items.keys()))
+
         self.assertEqual(activities_count, 6)
         self.assertEqual(activities_relate_count, 2)
 
@@ -871,7 +877,6 @@ class PrivateActivitiesApiTests(TestCase):
             self.assertEqual(unique_items[i], 1)
         self.assertEqual(list(activities_id_unique), list(unique_items.keys()))
 
-        # self.assertEqual(list(set(activities_id_unique)), list(activities_id_unique))
         self.assertEqual(activities_count, 6)
         self.assertEqual(activities_relate_count, 2)
         other_activity = Activities.objects.filter(name=activities3.name)

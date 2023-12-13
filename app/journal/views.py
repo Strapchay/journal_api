@@ -31,6 +31,8 @@ from journal.mixins import (
     BatchUpdateActivitiesRouteMixin,
     BatchDeleteActivitiesRouteMixin,
     BatchDuplicateActivitiesRouteMixin,
+    BatchTagRouteMixin,
+    BatchSubmodelRouteMixin,
 )
 
 
@@ -204,8 +206,9 @@ class JournalTableViewSet(viewsets.ModelViewSet):
             ),
         ],
     ),
+    batch_tag_processor=extend_schema(exclude=True),
 )
-class TagsViewSet(viewsets.ModelViewSet):
+class TagsViewSet(BatchRouteMixin, BatchTagRouteMixin, viewsets.ModelViewSet):
     """
     Viewset for creating journal table
     """
@@ -222,11 +225,17 @@ class TagsViewSet(viewsets.ModelViewSet):
         if self.request.user.is_authenticated:
             serializer.save(user=self.request.user)
 
-    def get_queryset(self):
+    def get_queryset(self, ids=None):
         """
         Filter queryset to authenticated user
         """
         queryset = self.queryset
+        if ids is not None:
+            return queryset.filter(
+                tag_user=self.request.user,
+                id__in=ids,
+            )
+
         return queryset.filter(
             Q(tag_user=self.request.user) | Q(tag_user__is_superuser=True)
         )
@@ -268,6 +277,86 @@ class TagsViewSet(viewsets.ModelViewSet):
                     "tags": [1, 2],
                 },
             ),
+            OpenApiExample(
+                "Batch Add Tags Activities Body",
+                description="Allows for updating the tags for each activity to similar tags",
+                value={
+                    "activities_list": [{"ids": [1, 2, 3], "tags": [1, 2, 3]}],
+                },
+            ),
+            OpenApiExample(
+                "Add and update submodels of an Activity",
+                description="To create and update an Activity, the request body is in this format. For the `create` key. The `relative_item` specifies the order in which the submodel to be created should be ordered against. The `ordering_list` specifies the updated ordering of each created submodel field excluding the ordering for the submodel instance to be created. The `update` key contains the submodel instance to update which in most cases is the relative_item of the submodel to create. The `update_and_create` should be True if an update and create operation is to be performed. The `type` specifies the submodel type",
+                value={
+                    "intentions": {
+                        "activity": 1,
+                        "create": {
+                            "intention": "string",
+                            "relative_item": 1,
+                            "ordering": 2,
+                        },
+                        "update": {"id": 1, "intention": "string"},
+                        "ordering_list": [
+                            {"id": 1, "ordering": 1},
+                            {"id": 2, "ordering": 3},
+                            {"id": 3, "ordering": 4},
+                        ],
+                        "update_and_create": True,
+                        "type": "intentions",
+                    }
+                },
+            ),
+            OpenApiExample(
+                "Update submodels of an Activity",
+                description="The `update` key contains the submodel instance to update. The `update_only` should be True if an update operation is to be performed. The type specifies the submodel type",
+                value={
+                    "intentions": {
+                        "activity": 1,
+                        "update": {"id": 1, "intention": "string"},
+                        "update_only": True,
+                        "type": "intentions",
+                    }
+                },
+            ),
+            OpenApiExample(
+                "Update submodels of an Activity",
+                description="The `update_action_item_checked` key contains the checked state of an action_item instance,its id and the `update_checked` specifies the checked state of the instance should be updated. The `update_only` should be True if an update operation is to be performed",
+                value={
+                    "action_items": {
+                        "activity": 1,
+                        "update_action_item_checked": {
+                            "checked": True,
+                            "id": 2,
+                            "update_checked": True,
+                            "type": "action_items",
+                        },
+                    }
+                },
+            ),
+        ],
+    ),
+    batch_duplicate_activities=extend_schema(
+        description="Endpoint for Batch Duplicating Activities",
+        examples=[
+            OpenApiExample(
+                "Duplicate Activities Body",
+                description="Allows for batch duplication of activities.The `ids` contains the id of each activity to duplicate",
+                value={
+                    "duplicate_list": [{"ids": [1, 2, 3]}],
+                },
+            ),
+        ],
+    ),
+    batch_delete_activities=extend_schema(
+        description="Endpoint for Batch Deleting Activities",
+        examples=[
+            OpenApiExample(
+                "Batch Delete Activities Body",
+                description="Allows for batch delete of activities.The id of each activity should be supplied in the list",
+                value={
+                    "delete_list": [1, 2, 3],
+                },
+            ),
         ],
     ),
 )
@@ -300,17 +389,18 @@ class ActivitiesViewSet(
             return self.queryset.filter(journal_table__journal__user=self.request.user)
 
 
-class BaseSubModelsViewSet(viewsets.ModelViewSet):
+@extend_schema_view(
+    batch_submodel_processor=extend_schema(exclude=True),
+)
+class BaseSubModelsViewSet(
+    BatchRouteMixin, BatchSubmodelRouteMixin, viewsets.ModelViewSet
+):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
         if self.request.user.is_authenticated:
             serializer.save()
-
-    # def list(self, request, pk=None):
-    # TODO: implement method
-    # print("thee list request", request.data)
 
     def get_queryset(self):
         if self.request.user.is_authenticated:

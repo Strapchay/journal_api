@@ -109,7 +109,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             journal_serializer.save()
 
         except Exception as e:
-            print("trig exception user journal table", e)
+            raise exceptions.ValidationError(e)
 
     def create(self, validated_data):
         """

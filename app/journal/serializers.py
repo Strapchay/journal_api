@@ -15,7 +15,11 @@ from core.models import (
 from journal.mixins import (
     BatchUpdateActivitiesSerializerMixin,
     BatchDuplicateActivitiesSerializerMixin,
+    BatchTagSerializerMixin,
+    BatchSubmodelSerializerMixin,
     CloneModelMixin,
+    TagsValidatorMixin,
+    SubmodelMixin,
 )
 
 
@@ -63,6 +67,71 @@ class BatchUpdateActivitiesSerializer(
         ]
 
 
+class BatchTagSerializer(
+    TagsValidatorMixin, BatchTagSerializerMixin, serializers.ListSerializer
+):
+    """
+    Serializer for batch related actions for tags
+    """
+
+    def validate(self, attrs):
+        return self.validate_for_multiple_tags(attrs)
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        tag_list = validated_data
+
+        create_tag_list = []
+        if tag_list is not None:
+            for tag in tag_list:
+                tag.pop("user", None)
+                tag["tag_user"] = user
+                create_tag_list.append(self.child.Meta.model(**tag))
+
+        try:
+            self.child.Meta.model.objects.bulk_create(create_tag_list)
+        except IntegrityError as e:
+            raise serializers.ValidationError(detail=e)
+
+        return create_tag_list
+
+    def update(self, instance, validated_data):
+        try:
+            instance_list = instance
+            for i, instance in enumerate(instance_list):
+                for attr, value in validated_data[i].items():
+                    if value is not None:
+                        setattr(instance, attr, value)
+
+            try:
+                self.child.Meta.model.objects.bulk_update(
+                    instance_list, ["tag_name", "tag_color", "tag_class"]
+                )
+            except IntegrityError as e:
+                raise serializers.ValidationError(detail=e)
+
+            return instance_list
+        except Exception as e:
+            raise exceptions.ValidationError(detail=e)
+
+
+class BatchSubmodelSerializer(
+    SubmodelMixin, BatchSubmodelSerializerMixin, serializers.ListSerializer
+):
+    """
+    Serializer for batch related actions for submodels
+    """
+
+    def validate(self, attrs):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+
 class BatchDuplicateActivitiesSerializer(
     CloneModelMixin,
     BatchDuplicateActivitiesSerializerMixin,
@@ -83,10 +152,9 @@ class BatchDuplicateActivitiesSerializer(
         duplicates_to_create = [
             self.duplicate_model(activity) for activity in activities_to_duplicate
         ]
+
         end_time = time.time()
         total = end_time - start_time
-        print("total time", total)
-
         return duplicates_to_create
 
     class Meta:
@@ -107,11 +175,11 @@ class ListSerializerClassInitMixin:
     list_serializer_type_classes = {
         "batch_update_activities": BatchUpdateActivitiesSerializer,
         "batch_duplicate_activities": BatchDuplicateActivitiesSerializer,
+        "batch_tag_processor": BatchTagSerializer,
     }
 
     def __init__(self, *args, **kwargs) -> None:
         list_serializer_type = kwargs.pop("type", None)
-
         super().__init__(*args, **kwargs)
 
         if list_serializer_type is not None:
@@ -120,71 +188,20 @@ class ListSerializerClassInitMixin:
             ]
 
 
-class TagsSerializer(serializers.ModelSerializer):
+class TagsSerializer(TagsValidatorMixin, serializers.ModelSerializer):
     """
     Serializer for serializing the Tags
     """
 
-    def format_tag_name(self, attrs):
-        return attrs["tag_name"][0].upper() + attrs["tag_name"][1:].lower()
-
-    def validate_tag_matches_color_and_class(self, tag_color, tag_class):
-        """
-        Validates that the tag color and class are relative
-        """
-        if tag_color is not None and tag_class is not None:
-            split_color = tag_color.split(" ")
-            color = (
-                split_color[1].lower()
-                if len(split_color) > 1
-                else split_color[0].lower()
-            )
-
-            if color in tag_class:
-                return True
-            else:
-                raise exceptions.ValidationError(
-                    detail="The tag_color and tag_class has to be relative to each other"
-                )
-
-        raise exceptions.ValidationError(
-            detail="The tag_color and tag_class cannot be empty"
-        )
-
     def validate(self, attrs):
         try:
-            tag_model_filter = self.Meta.model.objects.filter(
-                tag_user=self.context["request"].user
-            ).values_list("tag_name", flat=True)
-
-            formatted_tag_name = self.format_tag_name(attrs)
-
-            if self.context["view"].action == "create":
-                if formatted_tag_name in tag_model_filter:
-                    raise exceptions.ValidationError(
-                        detail="Cannot Create Existing Tag"
-                    )
-
-            if attrs["tag_color"] is None or attrs["tag_class"] is None:
-                raise exceptions.ValidationError(
-                    detail="The tag_color and tag_class has to be supplied"
-                )
-
-            self.validate_tag_matches_color_and_class(
-                attrs["tag_color"], attrs["tag_class"]
-            )
-
-            # check if the value gets assigned to the field
-            attrs["tag_name"] = formatted_tag_name
-
-            super().validate(attrs)
-
-            return attrs
+            return self.validate_for_single_tag(attrs)
         except KeyError as e:
             raise exceptions.ValidationError(detail="Invalid Update data provided")
 
     def create(self, validated_data):
         user = validated_data.pop("tag_user", self.context["request"].user)
+
         tag = Tags.objects.create(
             tag_user=user,
             tag_name=validated_data["tag_name"],
@@ -194,6 +211,7 @@ class TagsSerializer(serializers.ModelSerializer):
         return tag
 
     class Meta:
+        list_serializer_class = BatchTagSerializer
         model = Tags
         fields = ["id", "tag_user", "tag_name", "tag_color", "tag_class"]
         read_only_fields = ["id"]
@@ -325,7 +343,6 @@ class JournalSerializer(serializers.ModelSerializer):
         """
         Update a Journal
         """
-        print("the journal upd val dt", validated_data)
         try:
             for attr, value in validated_data.items():
                 updated_cur_table = self.update_current_table(instance, attr, value)
@@ -335,7 +352,6 @@ class JournalSerializer(serializers.ModelSerializer):
             instance.save()
             return instance
         except Exception as e:
-            print("exception trig update journalserializer", e)
             raise exceptions.ValidationError(detail=e)
 
 
@@ -401,7 +417,9 @@ class ActivitiesTagsSerializer(serializers.ModelSerializer):
         fields = ["id", "tag_color", "tag_name", "tag_class"]
 
 
-class ActivitiesSerializer(ListSerializerClassInitMixin, serializers.ModelSerializer):
+class ActivitiesSerializer(
+    ListSerializerClassInitMixin, SubmodelMixin, serializers.ModelSerializer
+):
     """
     Serializer for serializing the Activities
     """
@@ -443,19 +461,6 @@ class ActivitiesSerializer(ListSerializerClassInitMixin, serializers.ModelSerial
         ret = super().to_internal_value(data)
         return ret
 
-    def get_submodel_field(self, submodel_type):
-        if submodel_type == "grateful_for":
-            return submodel_type
-        return submodel_type[:-1]
-
-    def get_submodel(self, submodel_type):
-        return {
-            "intentions": Intentions,
-            "happenings": Happenings,
-            "action_items": ActionItems,
-            "grateful_for": GratefulFor,
-        }.get(submodel_type)
-
     def create_default_submodels(self, model):
         # create default submodels
         for submodel in SUBMODELS_LIST:
@@ -477,50 +482,7 @@ class ActivitiesSerializer(ListSerializerClassInitMixin, serializers.ModelSerial
                 return action_item_submodel
             return submodel
         except Exception as e:
-            print("check excp", e)
-
-    def create_sub_model(self, submodel_type, model_instance, submodel_data):
-        try:
-            submodel_field = self.get_submodel_field(submodel_type)
-            submodel_field_value = submodel_data[submodel_field]
-
-            submodel_payload = {
-                submodel_field: submodel_field_value,
-                "activity": model_instance,
-            }
-            if submodel_data.get("relative_item") is not None:
-                submodel_payload["ordering"] = submodel_data["ordering"]
-            submodel_obj = self.get_submodel(submodel_type).objects.create(
-                **submodel_payload
-            )
-            return submodel_obj
-
-        except Exception as e:
-            print("except create trig", e)
-
-    def update_sub_model(
-        self, submodel_type, submodel_data, submodel_id, activity_instance
-    ):
-        try:
-            if submodel_id is not None:
-                submodel_instance = self.get_submodel(submodel_type).objects.get(
-                    id=submodel_id
-                )
-                submodel_field = self.get_submodel_field(submodel_type)
-
-                # set the submodel value on the submodel
-                setattr(
-                    submodel_instance, submodel_field, submodel_data[submodel_field]
-                )
-                submodel_instance.save()
-            else:
-                self.create_sub_model(
-                    submodel_type=submodel_type,
-                    model_instance=activity_instance,
-                    submodel_data=submodel_data,
-                )
-        except Exception as e:
-            print("except trig", e)
+            raise serializers.ValidationError(detail=e)
 
     def update_model_ordering(self, ordering_payload, model):
         instance_ids = list(map(lambda x: x["id"], ordering_payload))
@@ -559,7 +521,6 @@ class ActivitiesSerializer(ListSerializerClassInitMixin, serializers.ModelSerial
                 ]
 
             activity = Activities.objects.create(**create_payload)
-            print("activ time", activity.created)
 
             if len(tags) > 0:
                 for tagId in tags:
@@ -595,6 +556,10 @@ class ActivitiesSerializer(ListSerializerClassInitMixin, serializers.ModelSerial
                 for tagId in tags:
                     tag = Tags.objects.get(id=tagId)
                     instance.tags.add(tag)
+
+                    # tag = Tags.objects.filter(id=tagId)
+                    # if tag.exists():
+                    # instance.tags.add(tag[0])
 
             for attr, value in submodels_validated_data.items():
                 if value is not None:
@@ -712,7 +677,7 @@ class JournalTableSerializer(CloneModelMixin, serializers.ModelSerializer):
             ret["journal_table"] = journal_table
             return ret
         except Exception as e:
-            print("the inter val eexceep jourtab ", e)
+            raise serializers.ValidationError(detail=e)
 
     class Meta:
         model = JournalTables
