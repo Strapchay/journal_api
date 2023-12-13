@@ -194,8 +194,8 @@ AUTH_USER_MODEL = "core.User"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": (
         "user.authentication.ExpiringTokenAuthentication",
     ),
     "PASSWORD_RESET_SERIALIZER": "user.serializers.ResetPasswordSerializer",
