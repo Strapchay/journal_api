@@ -1,13 +1,13 @@
 version: "3.9"
 
+    # container_name: journalapp
 services:
   app:
-    container_name: app
     build:
       context: .
     restart: always
     volumes:
-      - static:/vol/web
+      - static:/vol/journalweb
     expose:
       - "9008"
     environment:
