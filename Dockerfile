@@ -25,8 +25,8 @@ RUN \
     --disabled-password \
     --no-create-home \
     django-user && \
-    mkdir -p /vol/web/media && \
-    mkdir -p /vol/web/static 
+    mkdir -p /vol/journalweb/media && \
+    mkdir -p /vol/journalweb/static 
 
 COPY ./app /app
 

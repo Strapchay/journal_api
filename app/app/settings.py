@@ -44,7 +44,6 @@ else:
 # Application definition
 
 INSTALLED_APPS = [
-    "model_clone",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -183,8 +182,8 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 STATIC_URL = "/static/static/"
 MEDIA_URL = "/static/media/"
-MEDIA_ROOT = "/vol/web/media"
-STATIC_ROOT = "/vol/web/static"
+MEDIA_ROOT = "/vol/journalweb/media"
+STATIC_ROOT = "/vol/journalweb/static"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -195,8 +194,8 @@ AUTH_USER_MODEL = "core.User"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": (
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
         "user.authentication.ExpiringTokenAuthentication",
     ),
     "PASSWORD_RESET_SERIALIZER": "user.serializers.ResetPasswordSerializer",

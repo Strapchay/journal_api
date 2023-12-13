@@ -52,6 +52,7 @@ services:
 volumes:
   postgres-data:
   static:
+    external: true
     name: ${VOLUME}
 
 networks:
