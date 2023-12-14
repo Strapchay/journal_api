@@ -50,7 +50,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     username = models.CharField(max_length=40, null=True, blank=True)
-    is_active = models.BooleanField(default=True)  # TODO: switch to email activation
+    is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 
     objects = UserManager()
@@ -76,6 +76,11 @@ class User(AbstractBaseUser, PermissionsMixin):
             self.create_username
         super(User, self).save(*args, **kwargs)
 
+    class Meta:
+        db_table = 
+        verbose_name = 'User'
+        verbose_name_plural = 'Users'
+
 
 class Journal(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -88,6 +93,10 @@ class Journal(models.Model):
 
     def __str__(self) -> str:
         return self.journal_name
+    
+    class Meta:
+        verbose_name = 'Journal'
+        verbose_name_plural = 'Journals'
 
 
 def create_default_table_name():
@@ -117,6 +126,8 @@ class JournalTables(models.Model):
 
     class Meta:
         ordering = ["id"]
+        verbose_name = 'JournalTable'
+        verbose_name_plural = 'JournalTables'
 
 
 class Activities(models.Model):
@@ -155,6 +166,8 @@ class Activities(models.Model):
 
     class Meta:
         ordering = ["ordering"]
+        verbose_name = 'Activity'
+        verbose_name_plural = 'Activities'
 
 
 class Tags(models.Model):
@@ -200,6 +213,8 @@ class Tags(models.Model):
                 name="unique_tag_name",
             ),
         )
+        verbose_name = 'Tag'
+        verbose_name_plural = 'Tags'
 
     def __str__(self) -> str:
         return self.tag_name
@@ -247,7 +262,9 @@ class Intentions(BaseSubModel):
         return self.intention
 
     class Meta:
-        ordering = ["ordering"]  # ["id"]
+        ordering = ["ordering"]
+        verbose_name = 'Intention'
+        verbose_name_plural = 'Intentions'
 
 
 class Happenings(BaseSubModel):
@@ -265,7 +282,9 @@ class Happenings(BaseSubModel):
         return self.happening
 
     class Meta:
-        ordering = ["ordering"]  # ["id"]
+        ordering = ["ordering"]
+        verbose_name = 'Happening'
+        verbose_name_plural = 'Happenings'
 
 
 class GratefulFor(BaseSubModel):
@@ -283,7 +302,9 @@ class GratefulFor(BaseSubModel):
         return self.grateful_for
 
     class Meta:
-        ordering = ["ordering"]  # ["id"]
+        ordering = ["ordering"]
+        verbose_name = 'GratefulFor'
+        verbose_name_plural = 'GratefulFor'
 
 
 class ActionItems(BaseSubModel):
@@ -303,3 +324,5 @@ class ActionItems(BaseSubModel):
 
     class Meta:
         ordering = ["ordering"]  # ["id"]
+        verbose_name = 'ActionItem'
+        verbose_name_plural = 'ActionItems'
