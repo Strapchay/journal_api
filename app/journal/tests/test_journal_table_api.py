@@ -223,10 +223,58 @@ class PrivateJournalTableApiTests(TestCase):
             journal=self.journal, table_name="lsdfjsdf dskfjlsdfjdsff"
         )
 
+        JournalTables.objects.create(journal=self.journal, table_name="lsdfjsdf")
+
         delete_url = detail_url(journal_table.id)
 
         res = self.client.delete(delete_url)
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        journal_tables = JournalTables.objects.filter(journal=self.journal)
+        self.assertEqual(journal_tables.count(), 1)
+
+    def test_delete_journal_current_journal_table_updates_journal_current_table(self):
+        """
+        Test delete journal table which is the journal's current table updates the journal current table
+        """
+        journal_table = JournalTables.objects.create(
+            journal=self.journal, table_name="lsdfjsdf dskfjlsdfjdsff"
+        )
+
+        journal_table2 = JournalTables.objects.create(
+            journal=self.journal, table_name="l;kjdslkjfad"
+        )
+
+        journal_table3 = JournalTables.objects.create(
+            journal=self.journal, table_name="skdjfdsf"
+        )
+
+        self.journal.current_table = journal_table.id
+        self.journal.save()
+
+        delete_url = detail_url(journal_table.id)
+
+        res = self.client.delete(delete_url)
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.journal.refresh_from_db()
+        journal_tables = JournalTables.objects.filter(journal=self.journal)
+        self.assertEqual(journal_tables.count(), 2)
+
+        self.assertEqual(self.journal.current_table, journal_table2.id)
+
+    def test_delete_only_journal_table_fails(self):
+        """
+        Test delete the only journal table fails for authenticated user
+        """
+        journal_table = JournalTables.objects.create(
+            journal=self.journal, table_name="lsdfjsdf dskfjlsdfjdsff"
+        )
+
+        delete_url = detail_url(journal_table.id)
+
+        res = self.client.delete(delete_url)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        journal_tables = JournalTables.objects.filter(journal=self.journal)
+        self.assertEqual(journal_tables.count(), 1)
 
     def test_delete_journal_for_other_user_by_authenticated_user_fails(self):
         """

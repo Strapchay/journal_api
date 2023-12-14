@@ -34,6 +34,7 @@ from journal.mixins import (
     BatchTagRouteMixin,
     BatchSubmodelRouteMixin,
 )
+from journal.exceptions import RequestDenied
 
 
 class JournalViewSet(viewsets.ModelViewSet):
@@ -85,6 +86,26 @@ class JournalTableViewSet(viewsets.ModelViewSet):
 
         if journal is not None:
             serializer.save(journal=journal)
+
+    def perform_destroy(self, instance):
+        instance_id = instance.id
+        user_journal = Journal.objects.get(user=self.request.user)
+        user_journal_tables = JournalTables.objects.filter(journal=user_journal)
+
+        if user_journal.current_table == instance_id:
+            if user_journal_tables.count() > 1:
+                instance.delete()
+                print("user jor current tab to set to", user_journal_tables.first().id)
+                user_journal.current_table = user_journal_tables.first().id
+                user_journal.save()
+
+            else:
+                raise RequestDenied()
+        else:
+            if user_journal_tables.count() > 1:
+                instance.delete()
+            else:
+                raise RequestDenied()
 
     def retrieve(self, request, *args, **kwargs):
         try:
