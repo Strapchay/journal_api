@@ -24,7 +24,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "changeme")
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = bool(int(os.environ.get("DEBUG", 0)))
+DEBUG = True  # bool(int(os.environ.get("DEBUG", 0)))
 
 ALLOWED_HOSTS = []
 
@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
     "core",
     "rest_framework",
     "rest_framework.authtoken",
@@ -71,6 +72,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.contrib.sites.middleware.CurrentSiteMiddleware",
 ]
+
+SITE_ID = 1
 
 ROOT_URLCONF = "app.urls"
 
