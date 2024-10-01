@@ -103,7 +103,6 @@ CORS_ORIGIN_WHITELIST.extend(
         os.environ.get("ALLOWED_HOSTS", "").split(","),
     )
 )
-CORS_ORIGIN_WHITELIST.extend(["http://127.0.0.1:1234", "http://127.0.0.1:5173", "http://localhost:1234", "http://localhost:5173" ])
 
 CSRF_TRUSTED_ORIGINS = [os.environ.get("CORS_CSRF_URL_1", "https://example.com")]
 CSRF_TRUSTED_ORIGINS.extend(
@@ -112,8 +111,6 @@ CSRF_TRUSTED_ORIGINS.extend(
         os.environ.get("ALLOWED_HOSTS", "").split(","),
     )
 )
-CSRF_TRUSTED_ORIGINS.extend(["http://127.0.0.1:1234", "http://127.0.0.1:5173", "http://localhost:1234", "http://localhost:5173" ])
-
 
 
 CSRF_ALLOWED_ORIGINS = [os.environ.get("CORS_CSRF_URL_1", "https://example.com")]
@@ -123,8 +120,6 @@ CSRF_ALLOWED_ORIGINS.extend(
         os.environ.get("ALLOWED_HOSTS", "").split(","),
     )
 )
-CSRF_ALLOWED_ORIGINS.extend(["http://127.0.0.1:1234", "http://127.0.0.1:5173", "http://localhost:1234", "http://localhost:5173" ])
-
 
 
 CORS_ALLOW_HEADERS = ["X-Custom-Header", "Authorization", "Content-Type"]

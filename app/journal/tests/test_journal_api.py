@@ -271,7 +271,6 @@ class PrivateJournalApiTests(TestCase):
         res = self.client.patch(journal_url, table_func_data, format="json")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
-        print("table func data", res.data)
 
         self.assertEqual(
             res.data["journal_table_func"], table_func_data["journal_table_func"]

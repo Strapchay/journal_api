@@ -321,7 +321,6 @@ class JournalSerializer(serializers.ModelSerializer):
         return journal
 
     def update_current_table(self, instance, attr, value):
-        print("the attr val", attr, value)
         if attr == "current_table":
             get_table = JournalTables.objects.filter(id=int(value)).count()
             if get_table == 0:
@@ -345,11 +344,9 @@ class JournalSerializer(serializers.ModelSerializer):
         Update a Journal
         """
         try:
-            print("the validated data", validated_data)
             for attr, value in validated_data.items():
                 updated_cur_table = self.update_current_table(instance, attr, value)
                 if updated_cur_table == False:
-                    print("the not update cur table", attr, value)
                     setattr(instance, attr, value)
 
             instance.save()
@@ -517,6 +514,8 @@ class ActivitiesSerializer(
                 "name": validated_data["name"],
                 "journal_table": journal_table,
             }
+            if journal_table is None:
+                raise serializers.ValidationError("No journal table provided")
             if activities_ordering_list is not None:
                 # add the create item ordering if its a relative item being added
                 create_payload["ordering"] = activities_ordering_list[
@@ -524,7 +523,6 @@ class ActivitiesSerializer(
                 ]
 
             activity = Activities.objects.create(**create_payload)
-            print("the created activity value", activity)
 
             if len(tags) > 0:
                 for tagId in tags:

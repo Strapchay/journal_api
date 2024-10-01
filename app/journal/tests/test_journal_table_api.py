@@ -136,7 +136,6 @@ class PrivateJournalTableApiTests(TestCase):
             "table_name": "",
         }
         res = self.client.post(CREATE_JOURNAL_TABLE_URL, payload, format="json")
-        print("res data dup table", res.data)
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(res.data["table_name"], f"{journal_table.table_name} (1)")
@@ -151,7 +150,6 @@ class PrivateJournalTableApiTests(TestCase):
             "journal": self.journal.id,
         }
         res = self.client.post(CREATE_JOURNAL_TABLE_URL, payload, format="json")
-        print("res data create default table", res.data)
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(journal_table.table_name, "Table")

@@ -125,7 +125,6 @@ class PrivateTagsApiTest(TestCase):
         }
 
         res = self.client.post(BATCH_TAG_URL, payload, format="json")
-        print("btach tag createe", res.data)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         tags_count = Tags.objects.filter(tag_user=self.user.id).count()
         self.assertEqual(tags_count, 3)
@@ -156,7 +155,6 @@ class PrivateTagsApiTest(TestCase):
         }
 
         res = self.client.post(BATCH_TAG_URL, payload, format="json")
-        print("btach tag createe inval data", res.data)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         tags_count = Tags.objects.filter(tag_user=self.user.id).count()
         self.assertEqual(tags_count, 2)
@@ -330,7 +328,6 @@ class PrivateTagsApiTest(TestCase):
         }
 
         res = self.client.patch(BATCH_TAG_URL, payload, format="json")
-        print("btach tag createe inval data", res.data)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         tag1.refresh_from_db()
         tag2.refresh_from_db()
@@ -369,7 +366,6 @@ class PrivateTagsApiTest(TestCase):
         payload = {"tags_list": [tag3.id, tag1.id]}
 
         res = self.client.delete(BATCH_TAG_URL, payload, format="json")
-        print("btach tag createe inval data", res.data)
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
 
         tags_count = Tags.objects.filter(tag_user=self.user).count()
@@ -408,7 +404,6 @@ class PrivateTagsApiTest(TestCase):
         payload = {"tags_list": [tag3.id, tag1.id, 84398434]}
 
         res = self.client.delete(BATCH_TAG_URL, payload, format="json")
-        print("btach tag createe inval data", res.data)
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
 
         tags_count = Tags.objects.filter(tag_user=self.user).count()

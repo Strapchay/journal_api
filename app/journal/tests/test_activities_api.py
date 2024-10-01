@@ -654,7 +654,6 @@ class PrivateActivitiesApiTests(TestCase):
         res = self.client.patch(
             BATCH_UPDATE_ACTIVITIES_URL, batch_update_payload, format="json"
         )
-        print("activities batch tag", res.data)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         for i in [activities1, activities2, activities3]:
@@ -793,7 +792,6 @@ class PrivateActivitiesApiTests(TestCase):
         activities_ordering_unique = activities.values_list("ordering", flat=True)
 
         self.assertEqual(len(activities_id_unique), len(set(activities_id_unique)))
-        print("the ordering unique", activities_ordering_unique)
         self.assertEqual(
             len(activities_ordering_unique), len(set(activities_ordering_unique))
         )

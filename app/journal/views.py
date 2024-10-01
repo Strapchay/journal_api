@@ -96,7 +96,6 @@ class JournalTableViewSet(viewsets.ModelViewSet):
         if user_journal.current_table == instance_id:
             if user_journal_tables.count() > 1:
                 instance.delete()
-                print("user jor current tab to set to", user_journal_tables.first().id)
                 user_journal.current_table = user_journal_tables.first().id
                 user_journal.save()
 
