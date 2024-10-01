@@ -1,13 +1,11 @@
-version: "3.9"
-
-    # container_name: journalapp
 services:
   app:
+    container_name: app
     build:
       context: .
     restart: always
     volumes:
-      - static:/vol/journalweb
+      - static:/vol/web
     expose:
       - "9008"
     environment:
@@ -15,22 +13,20 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
-      - DB_PORT=${DB_PORT}
-      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
-      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
-      - EMAIL_HOST=${EMAIL_HOST}
-      - EMAIL_PORT=${EMAIL_PORT}
-      - EMAIL_USE_SSL=${EMAIL_USE_SSL}
-      - EMAIL_USE_TLS=${EMAIL_USE_TLS}
-      - CORS_CSRF_URL_1=${CORS_CSRF_URL_1}
       - SECRET_KEY=${SECRET_KEY}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
       - DEV=false
-      - VIRTUAL_HOST=${VIRTUAL_HOST}
-      - VIRTUAL_PORT=9008
-      - VIRTUAL_PROTO=uwsgi
-      - LETSENCRYPT_HOST=${VIRTUAL_HOST}
-      - HTTPS_METHOD=noredirect
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.services.app.loadbalancer.server.port=9008"
+      - "traefik.http.routers.app.entrypoints=web"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls=true"
+      - "traefik.http.routers.app.middlewares=redirect-to-https@docker"
+      - "traefik.http.routers.app.tls.certresolver=letsencrypt"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
 
     networks:
       - net
@@ -60,8 +56,6 @@ services:
 volumes:
   postgres-data:
   static:
-    external: true
-    name: ${VOLUME}
 
 networks:
   net:
