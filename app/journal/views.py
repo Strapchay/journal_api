@@ -1,6 +1,7 @@
 """
 Views For the Journal
 """
+from user.authentication import ExpiringTokenAuthentication
 from drf_spectacular.utils import (
     extend_schema,
     extend_schema_view,
@@ -42,7 +43,7 @@ class JournalViewSet(viewsets.ModelViewSet):
     Viewset for creating journal
     """
 
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [ExpiringTokenAuthentication]
     serializer_class = serializers.JournalSerializer
     permission_classes = [IsAuthenticated]
     queryset = Journal.objects.all()
@@ -73,7 +74,7 @@ class JournalTableViewSet(viewsets.ModelViewSet):
     Viewset for creating journal table
     """
 
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [ExpiringTokenAuthentication]
     serializer_class = serializers.JournalTableSerializer
     permission_classes = [IsAuthenticated]
     queryset = JournalTables.objects.all()
@@ -234,7 +235,7 @@ class TagsViewSet(BatchRouteMixin, BatchTagRouteMixin, viewsets.ModelViewSet):
     Viewset for creating journal table
     """
 
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [ExpiringTokenAuthentication]
     serializer_class = serializers.TagsSerializer
     permission_classes = [IsAuthenticated]
     queryset = Tags.objects.all()
@@ -392,7 +393,7 @@ class ActivitiesViewSet(
     Viewset for creating a journal table activities
     """
 
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [ExpiringTokenAuthentication]
     serializer_class = serializers.ActivitiesSerializer
     permission_classes = [IsAuthenticated]
     queryset = Activities.objects.all()
@@ -416,7 +417,7 @@ class ActivitiesViewSet(
 class BaseSubModelsViewSet(
     BatchRouteMixin, BatchSubmodelRouteMixin, viewsets.ModelViewSet
 ):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [ExpiringTokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):

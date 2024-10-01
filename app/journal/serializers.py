@@ -321,6 +321,7 @@ class JournalSerializer(serializers.ModelSerializer):
         return journal
 
     def update_current_table(self, instance, attr, value):
+        print("the attr val", attr, value)
         if attr == "current_table":
             get_table = JournalTables.objects.filter(id=int(value)).count()
             if get_table == 0:
@@ -344,9 +345,11 @@ class JournalSerializer(serializers.ModelSerializer):
         Update a Journal
         """
         try:
+            print("the validated data", validated_data)
             for attr, value in validated_data.items():
                 updated_cur_table = self.update_current_table(instance, attr, value)
                 if updated_cur_table == False:
+                    print("the not update cur table", attr, value)
                     setattr(instance, attr, value)
 
             instance.save()
@@ -521,6 +524,7 @@ class ActivitiesSerializer(
                 ]
 
             activity = Activities.objects.create(**create_payload)
+            print("the created activity value", activity)
 
             if len(tags) > 0:
                 for tagId in tags:
@@ -532,6 +536,7 @@ class ActivitiesSerializer(
                 self.update_model_ordering(ordering_list, self.Meta.model)
 
             self.create_default_submodels(activity)
+
 
             return activity
         except Exception as e:
@@ -652,6 +657,7 @@ class JournalTableActivitiesSerializer(serializers.ModelSerializer):
             "happenings",
             "grateful_for",
             "action_items",
+            "created"
         ]
         read_only_fields = ["id"]
 

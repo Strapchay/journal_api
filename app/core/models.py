@@ -74,7 +74,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     def save(self, *args, **kwargs):
         if self.username is None:
             self.create_username
-        super(User, self).save(*args, **kwargs)
+        return super(User, self).save(*args, **kwargs)
 
     class Meta:
         verbose_name = "User"
@@ -131,7 +131,7 @@ class JournalTables(models.Model):
 
 class Activities(models.Model):
     name = models.CharField(max_length=3000, null=True, blank=True)
-    created = models.DateTimeField(auto_now=True)
+    created = models.DateTimeField(auto_now_add=True)
     journal_table = models.ForeignKey(
         JournalTables,
         on_delete=models.CASCADE,
@@ -158,7 +158,8 @@ class Activities(models.Model):
     def save(self, *args, **kwargs):
         if self.ordering is None:
             self.increment_ordering
-        super(Activities, self).save(*args, **kwargs)
+        return super(Activities, self).save(*args, **kwargs)
+
 
     def __str__(self) -> str:
         return self.name
@@ -242,7 +243,7 @@ class BaseSubModel(models.Model):
     def save(self, *args, **kwargs):
         if self.ordering is None:
             self.increment_ordering
-        super().save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
 
 class Intentions(BaseSubModel):
