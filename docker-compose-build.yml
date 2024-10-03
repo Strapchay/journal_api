@@ -1,10 +1,6 @@
-version:
-  "3.9"
-
-  # container_name: journalapp
 services:
   app:
-    container_name: app
+    container_name: journalapp
     build:
       context: .
     restart: always
