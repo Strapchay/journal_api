@@ -31,14 +31,16 @@ jobs:
         env:
           dest: "${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }}:/home/${{ secrets.USERNAME }}"
         run: |
-          mkdir ../journal_build
-          rsync -av --progress --exclude='.git' --exclude='.github' --exclude='.vscode' ./ ../journal_build
-          tar -cvf journal_deploy.tar ../journal_build/
+          mkdir ../buildapp
+          sudo apt install rsync -y
+          rsync -av --progress --exclude='.git' --exclude='.github' --exclude='.vscode' ./ ../buildapp
+          tar -cvf deploy_app.tar ../buildapp/
           echo "${{ secrets.EC2_SSH_KEY}}" > deploy_key
           chmod 600 ./deploy_key
-          rsync -chrlvzi --delete \
+          ssh -i ./deploy_key -p 22 -o StrictHostKeyChecking=no ${{ secrets.USERNAME }}@${{ secrets.HOST_DNS }} "sudo apt install rsync -y"
+          sudo rsync -chrlvzi --delete \
             -e 'ssh -i ./deploy_key -p 22 -o StrictHostKeyChecking=no' \
-            --include "journal_deploy.tar" \
+            --include "deploy_app.tar" \
             --exclude '*'\
             ./ ${{env.dest}}
 
@@ -63,16 +65,17 @@ jobs:
           EMAIL_USE_SSL: ${{ secrets.EMAIL_USE_SSL }}
           EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS }}
           APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
+          BASE_APP_DOMAIN: ${{ secrets.BASE_APP_DOMAIN }}
         with:
           host: ${{ secrets.HOST_DNS }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: DB_NAME,DB_USER,DB_PASS,SECRET_KEY,ALLOWED_HOSTS,DB_PORT,EMAIL_HOST_USER,EMAIL_HOST_PASSWORD,EMAIL_HOST,EMAIL_PORT,EMAIL_USE_SSL,EMAIL_USE_TLS,APP_DOMAIN
+          envs: DB_NAME,DB_USER,DB_PASS,SECRET_KEY,ALLOWED_HOSTS,DB_PORT,EMAIL_HOST_USER,EMAIL_HOST_PASSWORD,EMAIL_HOST,EMAIL_PORT,EMAIL_USE_SSL,EMAIL_USE_TLS,APP_DOMAIN, BASE_APP_DOMAIN
           script_stop: true
           script: |
-            tar -xvf ~/journal_deploy.tar
-            rm ~/journal_deploy.tar
-            cd ~/journal_build
+            tar -xvf ~/deploy_app.tar
+            rm ~/deploy_app.tar
+            cd ~/buildapp
             echo DB_NAME=$DB_NAME >> .env
             echo DB_USER=$DB_USER >> .env
             echo DB_PASS=$DB_PASS >> .env
@@ -86,5 +89,6 @@ jobs:
             echo EMAIL_USE_SSL=$EMAIL_USE_SSL >> .env
             echo EMAIL_USE_TLS=$EMAIL_USE_TLS >> .env
             echo APP_DOMAIN=$APP_DOMAIN >> .env
+            echo BASE_APP_DOMAIN=$BASE_APP_DOMAIN >> .env
             sudo docker compose -f ./docker-compose-build.yml build --no-cache
             sudo docker compose -f ./docker-compose-build.yml up -d
