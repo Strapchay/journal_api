@@ -19,18 +19,14 @@ services:
 
     labels:
       - "traefik.enable=true"
-      # Traefik HTTP router rule: match domain
-      - "traefik.http.routers.app.rule=Host(`${BASE_APP_DOMAIN}`)"
-      - "traefik.http.services.app.loadbalancer.server.port=9008"
-      # Optional: redirect HTTP to HTTPS
-      - "traefik.http.routers.app.entrypoints=web"
-      - "traefik.http.routers.app.entrypoints=websecure"
-      # Let’s Encrypt configuration
-      - "traefik.http.routers.app.tls=true"
-      - "traefik.http.routers.app.middlewares=redirect-to-https@docker"
-      # Let's Encrypt settings
-      - "traefik.http.routers.app.tls.certresolver=letsencrypt"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.app1.rule=Host(`${BASE_APP_DOMAIN}`)"
+      - "traefik.http.services.app1.loadbalancer.server.port=9008"
+      - "traefik.http.routers.app1.entrypoints=web"
+      - "traefik.http.routers.app1.entrypoints=websecure"
+      - "traefik.http.routers.app1.tls=true"
+      - "traefik.http.routers.app1.middlewares=redirect-to-https@docker,rate-limit@docker"
+      - "traefik.http.routers.app1.tls.certresolver=letsencrypt"
 
     networks:
       - web

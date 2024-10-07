@@ -26,14 +26,16 @@ RUN \
     --no-create-home \
     django-user && \
     mkdir -p /vol/journalweb/media && \
-    mkdir -p /vol/journalweb/static 
+    mkdir -p /vol/journalweb/static
 
 COPY ./app /app
 
 RUN chown -R django-user:django-user /vol && \
     chown -R django-user:django-user /app && \
+    chown -R django-user:django-user /var && \
     chmod -R 755 /vol && \
     chmod -R 755 /app && \
+    chmod -R 755 /var && \
     chmod -R +x /scripts && \
     chown django-user:django-user /scripts/run.sh && \
     chmod +x /scripts/run.sh
