@@ -20,13 +20,13 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=web"
-      - "traefik.http.routers.app1.rule=Host(`${BASE_APP_DOMAIN}`)"
-      - "traefik.http.services.app1.loadbalancer.server.port=9008"
-      - "traefik.http.routers.app1.entrypoints=web"
-      - "traefik.http.routers.app1.entrypoints=websecure"
-      - "traefik.http.routers.app1.tls=true"
-      - "traefik.http.routers.app1.middlewares=redirect-to-https@docker,rate-limit@docker"
-      - "traefik.http.routers.app1.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.app2.rule=Host(`${BASE_APP_DOMAIN}`)"
+      - "traefik.http.services.app2.loadbalancer.server.port=9008"
+      - "traefik.http.routers.app2.entrypoints=web"
+      - "traefik.http.routers.app2.entrypoints=websecure"
+      - "traefik.http.routers.app2.tls=true"
+      - "traefik.http.routers.app2.middlewares=redirect-to-https@docker,rate-limit@docker"
+      - "traefik.http.routers.app2.tls.certresolver=letsencrypt"
 
     networks:
       - web
